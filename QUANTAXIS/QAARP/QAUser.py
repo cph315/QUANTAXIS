@@ -22,37 +22,33 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from datetime import time
-
-import pandas as pd
-
-from QUANTAXIS.QAFetch import QA_fetch_get_stock_transaction
-from QUANTAXIS.QAUtil import QA_util_log_info, QA_util_make_min_index
+from QUANTAXIS.QAUtil.QARandom import QA_util_random_with_topic
+from QUANTAXIS.QAUtil.QASetting import QA_Setting
+from QUANTAXIS.QASU.user import QA_user_sign_in, QA_user_sign_up
 
 
-def QA_data_tick_resample(tick, type_='1min'):
-    data = tick['price'].resample(
-        type_, label='right', closed='left').ohlc()
+class QA_User():
+    def __init__(self, *args, **kwargs):
 
-    data['volume'] = tick['vol'].resample(
-        type_, label='right', closed='left').sum()
-    data['code'] = tick['code'][0]
+        self.user_name = ''
+        self.password = ''
+        self.db_uri = ''
 
-    __data_ = pd.DataFrame()
-    _temp = tick.drop_duplicates('date')['date']
-    for item in _temp:
-        __data = data[item]
-        _data = __data[time(9, 31):time(11, 30)].append(
-            __data[time(13, 1):time(15, 0)])
-        __data_ = __data_.append(_data)
+        self.session = {}
+        self.portfolio_list = {}
 
-    __data_['datetime'] = __data_.index
-    __data_['date'] = __data_['datetime'].apply(lambda x: str(x)[0:10])
-    
-    return __data_.fillna(method='ffill').set_index(['datetime', 'code'], drop=False)
+    @property
+    def client(self):
+        return QA_Setting.client
 
+    def login(self):
+        if QA_user_sign_in(self.user_name, self.password, self.client):
+            pass
+        else:
+            return False
 
-if __name__ == '__main__':
-    tick = QA_fetch_get_stock_transaction(
-        'tdx', '000001', '2017-01-03', '2017-01-05')
-    print(QA_data_tick_resample(tick))
+    def logout(self):
+        pass
+
+    def get_portfolio(self, portfolio):
+        return self.portfolio_list[portfolio]

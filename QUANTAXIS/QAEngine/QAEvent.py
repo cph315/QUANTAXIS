@@ -1,4 +1,4 @@
-#Encoding:utf-8
+# encoding: UTF-8
 #
 # The MIT License (MIT)
 #
@@ -23,4 +23,33 @@
 # SOFTWARE.
 
 
+from abc import abstractmethod
 
+"""
+QUANTAXIS EVENT  
+
+EVENT 是会被推送进QUEUE的任务class
+
+通过EVENT_QUEUE.get()拿到标准的event,然后执行
+"""
+# coding:utf-8
+
+
+class QA_Job(object):
+    def __init__(self, *args, **kwargs):
+        self.type = None
+
+    def __repr__(self):
+        return '< QA_EVENT {} >'.format(self.type)
+
+    @abstractmethod
+    def run(self, event):
+        raise NotImplementedError
+
+
+class QA_Event(object):
+    def __init__(self, event_type=None, func=None, message=None, callback=False, *args, **kwargs):
+        self.event_type = event_type
+        self.func = func
+        self.message = message
+        self.callback = callback

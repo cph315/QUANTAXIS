@@ -1,4 +1,4 @@
-# coding :utf-8
+# coding:utf-8
 #
 # The MIT License (MIT)
 #
@@ -21,12 +21,3 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-import datetime
-import re
-import time
-
-import pymongo
-
-from QUANTAXIS.QAFetch import QAWind
-from QUANTAXIS.QAUtil import QA_Setting, QA_util_date_stamp, QA_util_time_stamp
-from QUANTAXIS.QASU.save_wind import *

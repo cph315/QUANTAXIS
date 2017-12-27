@@ -1,3 +1,4 @@
+# coding :utf-8
 #
 # The MIT License (MIT)
 #
@@ -22,49 +23,21 @@
 # SOFTWARE.
 
 
-import queue
-import threading
-import time
-
-from QUANTAXIS.QAUtil import QA_Setting, QA_util_log_info
-
-#from .QA_Event import QA_Event, QA_EventDispatcher
-from QUANTAXIS.QATask.QA_Queue_standard import QA_Queue
+from QUANTAXIS.QAMarket.QABroker import QA_Broker
+from QUANTAXIS.QAUtil.QALogs import QA_util_log_info
+from QUANTAXIS.QAUtil.QAParameter import RUNNING_ENVIRONMENT
+from QUANTAXIS.QAFetch.QATdx import QA_fetch_depth_market_data
 
 
-"""
-标准的QUANTAXIS事件方法,具有QA_Queue,QA_Event等特性,以及一些日志和外部接口
-"""
+class QA_RealBroker(QA_Broker):
+    def __init__(self, *args, **kwargs):
+        pass
 
+    def get_data(self, order):
+        pass
 
-class QA_Job():
-    def __init__(self):
-        self.type = 'default'
-        self.func = 'print(\'start\')'
-
-
-class QA_Engine():
-    def __init__(self, name='default'):
-        self.Job = queue.Queue()
-        self.Task = QA_Queue(self.Job)
-        self.Task.setName(name)
-
-    def query_state(self):
-        self.Job.put({'func': 'QA_util_log_info(theading.enumerate())'})
-        self.Job.put({'func': 'QA_util_log_info(theading.current_thread())'})
-
-    def put(self, task: QA_Job):
-        self.Job.put(vars(QA_Job))
-
-    def start(self):
-        self.Task.start()
-
-    def pause(self):
-        self.Task.pause()
-
-    def resume(self):
-        self.Task.resume()
-
-
-if __name__ == '__main__':
-    pass
+    def warp(self, order):
+        pass
+        
+    def receive_order(self,order):
+        pass

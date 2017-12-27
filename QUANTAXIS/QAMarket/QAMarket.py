@@ -23,122 +23,251 @@
 # SOFTWARE.
 
 
+import datetime
+import threading
+from concurrent.futures.process import ProcessPoolExecutor
+from concurrent.futures.thread import ThreadPoolExecutor
+from threading import Event, Thread, Timer
+
+from QUANTAXIS.QAARP.QAAccount import QA_Account
+from QUANTAXIS.QAEngine.QAEvent import QA_Event, QA_Job
+from QUANTAXIS.QAEngine.QATask import QA_Task
 from QUANTAXIS.QAFetch.QAQuery import (QA_fetch_future_day,
                                        QA_fetch_future_min,
                                        QA_fetch_future_tick,
                                        QA_fetch_index_day, QA_fetch_index_min,
                                        QA_fetch_stock_day, QA_fetch_stock_min)
-from QUANTAXIS.QAMarket.QAMarket_engine import (market_future_engine,
-                                                market_stock_day_engine,
-                                                market_stock_engine)
-from QUANTAXIS.QAUtil import (QA_util_log_info,
-                              QA_util_to_json_from_pandas)
+from QUANTAXIS.QAFetch.QATdx import (QA_fetch_get_future_day,
+                                     QA_fetch_get_future_min,
+                                     QA_fetch_get_future_transaction,
+                                     QA_fetch_get_future_transaction_realtime,
+                                     QA_fetch_get_index_day,
+                                     QA_fetch_get_index_min,
+                                     QA_fetch_get_stock_day,
+                                     QA_fetch_get_stock_min)
+from QUANTAXIS.QAMarket.QABacktestBroker import QA_BacktestBroker
+from QUANTAXIS.QAMarket.QABroker import QA_Broker
+from QUANTAXIS.QAMarket.QADealer import QA_Dealer
+from QUANTAXIS.QAMarket.QAOrderHandler import QA_OrderHandler
+from QUANTAXIS.QAMarket.QARandomBroker import QA_RandomBroker
+from QUANTAXIS.QAMarket.QARealBroker import QA_RealBroker
+from QUANTAXIS.QAMarket.QASimulatedBroker import QA_SimulatedBroker
+from QUANTAXIS.QAMarket.QATrade import QA_Trade
+from QUANTAXIS.QAUtil.QALogs import QA_util_log_info
+from QUANTAXIS.QAUtil.QAParameter import (ACCOUNT_EVENT, AMOUNT_MODEL,
+                                          BROKER_EVENT, BROKER_TYPE,
+                                          MARKET_EVENT, MARKETDATA_TYPE,
+                                          ORDER_DIRECTION, ORDER_EVENT,
+                                          ORDER_MODEL, ORDER_STATUS)
 
 
-class QA_Market():
+class QA_Market(QA_Trade):
     """
     QUANTAXIS MARKET 部分
 
-    回测/模拟盘
-    股票/指数/期货/债券/ETF
-    @yutiansut
+    交易前置/可连接到多个broker中
+
+    暂时还是采用多线程engine模式
 
     """
 
-    def __init__(self, commission_fee_coeff=0.0015):
-        self.engine = {'stock_day': QA_fetch_stock_day, 'stock_min': QA_fetch_stock_min,
-                       'future_day': QA_fetch_future_day, 'future_min': QA_fetch_future_min, 'future_tick': QA_fetch_future_tick}
-        self.commission_fee_coeff = commission_fee_coeff
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.session = {}
+        self.order_handler = QA_OrderHandler()
+        self._broker = {BROKER_TYPE.BACKETEST: QA_BacktestBroker, BROKER_TYPE.RANODM: QA_RandomBroker,
+                        BROKER_TYPE.REAL: QA_RealBroker, BROKER_TYPE.SIMULATION: QA_SimulatedBroker}
+
+        self.broker = {}
+        self.running_time = None
+        self.last_query_data = None
 
     def __repr__(self):
-        return '< QA_MARKET >'
+        return '< QA_MARKET with {} Broker >'.format(list(self.broker.keys()))
 
-    def _choice_trading_market(self, __order, __data=None):
-        assert isinstance(__order.type, str)
-        if __order.type == '0x01':
-            __data = self.__get_stock_day_data(
-                __order) if __data is None else __data
-            return market_stock_day_engine(__order, __data, self.commission_fee_coeff)
-        elif __order.type == '0x02':
-            # 获取股票引擎
-            __data = self.__get_stock_min_data(
-                __order) if __data is None else __data
+    def start(self):
+        self.trade_engine.start()
+        # self.trade_engine.create_kernal('MARKET')
+        # self.trade_engine.start_kernal('MARKET')
 
-            return market_stock_engine(__order, __data, self.commission_fee_coeff)
+    def connect(self, broker):
+        if broker in self._broker.keys():
 
-        elif __order.type == '0x03':
-
-            __data = self.__get_index_day_data(
-                __order) if __data is None else __data
-            return market_stock_engine(__order, __data, self.commission_fee_coeff)
-        elif __order.type == '0x04':
-
-            __data = self.__get_index_min_data(
-                __order) if __data is None else __data
-            return market_stock_engine(__order, __data, self.commission_fee_coeff)
-        elif __order.type == '1x01':
-            return market_future_engine(__order, __data)
-        elif __order.type == '1x02':
-            return market_future_engine(__order, __data)
-        elif __order.type == '1x03':
-            return market_future_engine(__order, __data)
-
-    def __get_stock_min_data(self, __order):
-        __data = QA_util_to_json_from_pandas(QA_fetch_stock_min(str(
-            __order.code)[0:6], str(__order.datetime)[0:19], str(__order.datetime)[0:10], 'pd'))
-        if len(__data) == 0:
-            pass
+            self.broker[broker] = self._broker[broker]()  # 在这里实例化
+            self.trade_engine.create_kernal('{}'.format(broker))
+            self.trade_engine.start_kernal('{}'.format(broker))
+            # 开启trade事件子线程
+            return True
         else:
-            __data = __data[0]
-        return __data
+            return False
 
-    def __get_stock_day_data(self, __order):
-        __data = QA_util_to_json_from_pandas(QA_fetch_stock_day(str(
-            __order.code)[0:6], str(__order.datetime)[0:10], str(__order.datetime)[0:10], 'pd'))
-        if len(__data) == 0:
-            pass
+    def login(self, account_cookie, broker_name):
+
+        if account_cookie not in self.session.keys():
+            self.session[account_cookie] = QA_Account(
+                account_cookie=account_cookie, broker_type=broker_name)
         else:
-            __data = __data[0]
-        return __data
+            return False
 
-    def __get_index_day_data(self, __order):
-        __data = QA_util_to_json_from_pandas(QA_fetch_index_day(str(
-            __order.code)[0:6], str(__order.datetime)[0:10], str(__order.datetime)[0:10], 'pd'))
-        if len(__data) == 0:
-            pass
+    def logout(self, account_cookie):
+        if account_cookie not in self.session.keys():
+            return False
         else:
-            __data = __data[0]
-        return __data
+            self.session.pop(account_cookie)
 
-    def __get_index_min_data(self, __order):
-        __data = QA_util_to_json_from_pandas(QA_fetch_index_min(str(
-            __order.code)[0:6], str(__order.datetime)[0:10], str(__order.datetime)[0:10], 'pd'))
-        if len(__data) == 0:
-            pass
+    def get_trading_day(self):
+        return self.running_time
+
+    def get_account_id(self):
+        return [item.account_cookie for item in self.session.values()]
+
+    def insert_order(self, account_id, amount, amount_model, time, code, price, order_model, towards, market_type, data_type, broker_name):
+
+        flag = False
+        if order_model in [ORDER_MODEL.CLOSE, ORDER_MODEL.NEXT_OPEN]:
+            _price = self.query_data_no_wait(broker_name=broker_name, data_type=data_type,
+                                             market_type=market_type, code=code, start=time)
+            if _price is not None:
+                price = float(_price[0][4])
+                flag = True
+        elif order_model is ORDER_MODEL.MARKET:
+            _price = self.query_data_no_wait(broker_name=broker_name, data_type=data_type,
+                                             market_type=market_type, code=code, start=time)
+            if _price is not None:
+                price = float(_price[0][1])
+                flag = True
+
+        elif order_model is ORDER_MODEL.LIMIT:
+            # if price > self.last_query_data[0][2] or price < self.last_query_data[0][3]:
+            flag = True
+        if flag:
+            order = self.session[account_id].send_order(
+                amount=amount, amount_model=amount_model, time=time, code=code, price=price,
+                order_model=order_model, towards=towards, market_type=market_type, data_type=data_type)
+            self.event_queue.put(QA_Task(job=self.order_handler, event=QA_Event(
+                event_type=ORDER_EVENT.CREATE, message=order, callback=self.on_insert_order)))
         else:
-            __data = __data[0]
-        return __data
+            pass
 
-    def receive_order(self, __order, __data=None):
-        """
-        get the order and choice which market to trade
+    def on_insert_order(self, order):
+        print(order)
 
-        """
-        def __confirm_order(__order):
-            if isinstance(__order.price, str):
-                if __order.price == 'market_price':
-                    return __order
-                elif __order.price == 'close_price':
-                    return __order
-                elif __order.price == 'strict' or 'strict_model' or 'strict_price':
-                    __order.price = 'strict_price'
-                    return __order
-                else:
-                    QA_util_log_info('unsupport type:' + __order.price)
-                    return __order
-            else:
-                return __order
-        return self._choice_trading_market(__confirm_order(__order), __data)
-
-    def trading_engine(self):
+    def _renew_account(self):
         pass
+
+    def query_order(self, order_id):
+        return self.order_handler.order_queue.query_order(order_id)
+
+    def query_asset(self, account_cookie):
+        return self.session[account_cookie].cash
+
+    def query_position(self, broker_name, account_cookie):
+        pass
+
+    def on_query_position(self, data):
+        pass
+
+    def query_data_no_wait(self, broker_name, data_type, market_type, code, start, end=None):
+        return self.broker[broker_name].run(event=QA_Event(
+            event_type=MARKET_EVENT.QUERY_DATA,
+            message={
+                'data_type':  data_type,
+                'market_type': market_type,
+                'code': code,
+                'start': start,
+                'end': end
+            }
+        ))
+
+    def query_data(self, broker_name, data_type, market_type, code, start, end=None):
+        self.event_queue.put(
+            QA_Task(
+                job=self.broker[broker_name],
+                engine=broker_name,
+                event=QA_Event(
+                    event_type=MARKET_EVENT.QUERY_DATA,
+                    message={
+                        'data_type':  data_type,
+                        'market_type': market_type,
+                        'code': code,
+                        'start': start,
+                        'end': end
+                    },
+                    callback=self.on_query_data
+                )
+            ))
+
+    def query_currentbar(self, broker_name, market_type, code):
+        return self.broker[broker_name].run(event=QA_Event(
+            event_type=MARKET_EVENT.QUERY_DATA,
+            message={
+                'data_type':  MARKETDATA_TYPE.CURRENT,
+                'market_type': market_type,
+                'code': code,
+                'start': self.running_time,
+                'end': None
+            }
+        ))
+
+    def on_query_data(self, data):
+        print('ON QUERY')
+        print(data)
+        self.last_query_data = data
+
+    def _on_trade_event(self, data):
+        self.session[data['header']['session']['account']].receive_deal(data)
+        self.on_trade_event(data)
+
+    def on_trade_event(self, data):
+        print('ON TRADE')
+        print(data)
+
+    def _trade(self, broker_name):
+        "内部函数"
+        self.event_queue.put(QA_Task(
+            job=self.order_handler,
+            engine=broker_name,
+            event=QA_Event(
+                event_type=BROKER_EVENT.TRADE,
+                message={
+                    'broker': self.broker[broker_name]},
+                callback=self._on_trade_event)))
+
+    def _settle(self, broker_name):
+        # 向事件线程发送BROKER的SETTLE事件
+        self.event_queue.put(QA_Task(
+            job=self.order_handler,
+            engine=broker_name,
+            event=QA_Event(
+                event_type=BROKER_EVENT.SETTLE,
+                message={'broker': self.broker[broker_name]})))
+        # 向事件线程发送ACCOUNT的SETTLE事件
+        for item in self.session.values():
+            if item.broker_type is broker_name:
+                self.event_queue.put(
+                    QA_Task(
+                        job=item,
+                        engine=broker_name,
+                        event=QA_Event(
+                            event_type=ACCOUNT_EVENT.SETTLE)))
+
+    def _close(self):
+        pass
+
+
+if __name__ == '__main__':
+
+    import QUANTAXIS as QA
+
+    user = QA.QA_Portfolio()
+    # 创建两个account
+
+    a_1 = user.new_account()
+    a_2 = user.new_account()
+    market = QA_Market()
+
+    market.connect(QA.RUNNING_ENVIRONMENT.BACKETEST)
+    print(market)
+    market.login(a_1)
+    market.login(a_2)
+    print(market.get_account_id())

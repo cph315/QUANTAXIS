@@ -1,4 +1,4 @@
-# coding=utf-8
+# coding :utf-8
 #
 # The MIT License (MIT)
 #
@@ -23,10 +23,47 @@
 # SOFTWARE.
 
 
-""""
-这个模块主要致力维护一个简单易用的协程/异步IO框架
-短期内不会实装
+"""
+需要一个可以被修改和继承的基类
+
+2017/8/12
 
 """
-from gevent import monkey; monkey.patch_all()
-from gevent import wsgi
+from abc import ABC, abstractmethod
+
+from QUANTAXIS.QAEngine.QAEvent import QA_Event, QA_Job
+from QUANTAXIS.QAUtil.QAParameter import BROKER_EVENT, EVENT_TYPE
+
+
+class QA_Broker(QA_Job):
+    """MARKET ENGINGE ABSTRACT
+
+    receive_order => warp => get_data => engine
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.type = EVENT_TYPE.BROKER_EVENT
+        self.name = None
+
+    def __repr__(self):
+        return '< QA_MARKET >'
+
+    @abstractmethod
+    def receive_order(self, event, order, market_data=None):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_data(self, order):
+        raise NotImplementedError
+
+    @abstractmethod
+    def warp(self, order):
+        raise NotImplementedError
+
+
+class QA_BROKER_EVENT(QA_Event):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+        self.event_type = None

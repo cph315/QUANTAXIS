@@ -1,4 +1,3 @@
-# coding:utf-8
 #
 # The MIT License (MIT)
 #
@@ -21,15 +20,43 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-from multiprocessing.dummy import Pool as ThreadPool
-from multiprocessing.pool import Pool
 
 
-def QA_util_MP_thread(num):
-    pool = ThreadPool(num)
-    return pool
+from QUANTAXIS.QAUtil.QARandom import QA_util_random_with_topic
 
 
-def QA_util_MP_process(num):
-    pool = Pool(num)
-    return pool
+"""
+标准的QUANTAXIS事件方法,具有QA_Thread,QA_Event等特性,以及一些日志和外部接口
+"""
+
+
+class QA_Task():
+    def __init__(self, job, event, engine=None, callback=False):
+        self.job = job
+        self.event = event
+        self.res = None
+        self.callback = callback
+        self.task_id = QA_util_random_with_topic('Task')
+        self.engine = engine
+
+    def do(self):
+        self.res = self.job.run(self.event)
+        if self.callback:
+            self.callback(self.res)
+
+    @property
+    def result(self):
+        # return {
+        #     'task_id': self.task_id,
+        #     'result': self.res,
+        #     'job': self.job,
+        #     'event': self.event
+        # }
+        return {
+            'task_id': self.task_id,
+            'result': self.res
+        }
+
+
+if __name__ == '__main__':
+    pass

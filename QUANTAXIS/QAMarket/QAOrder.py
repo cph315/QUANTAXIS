@@ -22,14 +22,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import datetime
-import threading
-import time
 
 import pandas as pd
 
-from QUANTAXIS.QAUtil import QA_util_log_info, QA_util_to_json_from_pandas, QA_util_random_with_topic
-
+from QUANTAXIS.QAUtil import (QA_util_log_info, QA_util_random_with_topic,
+                              QA_util_to_json_from_pandas)
+from QUANTAXIS.QAUtil.QAParameter import ORDER_MODEL, AMOUNT_MODEL, ORDER_STATUS
 
 """
 重新定义Order模式
@@ -45,59 +43,47 @@ by yutiansut@2017/12/15
 """
 
 
-
 class QA_Order():
-    def __init__(self, price=16, date='2015-01-05', datetime='2015-01-05 09:01:00', sending_time='2015-01-05 09:01:00', transact_time='', amount=10,
-                 towards=1, code='000001', user='root', account_cookie='', strategy='example01', btype='0x01', order_model='strategy', amount_model='amount',
-                 order_id=QA_util_random_with_topic(topic='Order'), trade_id='', status='100'):
+    def __init__(self, price=None, date=None, datetime=None, sending_time=None, transact_time=None, amount=None, market_type=None, data_type=None,
+                 towards=None, code=None, user=None, account_cookie=None, strategy=None, btype=None, order_model=None, amount_model=AMOUNT_MODEL.BY_AMOUNT,
+                 order_id=None, trade_id=None, status='100', *args, **kwargs):
         self.price = price
-        self.date = date
-        self.datetime = datetime
-        self.sending_time = sending_time  # 下单时间
+        self.datetime = None
+        if datetime is None and date is not None:
+            self.date = date
+            self.datetime = '{} 09:31:00'.format(self.date)
+
+        elif date is None and datetime is not None:
+            self.date = datetime[0:10]
+            self.datetime = datetime
+
+        elif date is not None and datetime is not None:
+            self.date = date
+            self.datetime = datetime
+        else:
+            pass
+        self.sending_time = self.datetime if sending_time is None else sending_time  # 下单时间
+
         self.transact_time = transact_time
         self.amount = amount
         self.towards = towards  # side
         self.code = code
         self.user = user
+        self.market_type = market_type
+        self.data_type = data_type
         self.account_cookie = account_cookie
         self.strategy = strategy
         self.type = btype  # see below
-        self.order_model = strategy
+        self.order_model = order_model
         self.amount_model = amount_model
-        self.order_id = order_id
+        self.order_id = QA_util_random_with_topic(
+            topic='Order') if order_id is None else order_id
         self.trade_id = trade_id
         self.status = status
 
     def __repr__(self):
-        return '< QA_Order datetime:{} code:{} price:{} towards:{} btype:{} order_id:{} account:{} >'.format(self.datetime, self.code, self.price, self.towards, self.type, self.order_id, self.account_cookie)
-
-    def stock_day(self):
-        self.type = '0x01'
-        return self
-
-    def stock_min(self):
-        self.type = '0x02'
-        return self
-
-    def index_day(self):
-        self.type = '0x03'
-        return self
-
-    def index_min(self):
-        self.type = '0x04'
-        return self
-
-    def stock_transaction(self):
-        self.type = '0x05'
-        return self
-
-    def index_transaction(self):
-        self.type = '0x06'
-        return self
-
-    def future_day(self):
-        self.type = '1x01'
-        return self
+        return '< QA_Order datetime:{} code:{} price:{} towards:{} btype:{} order_id:{} account:{} status:{} >'.format(
+            self.datetime, self.code, self.price, self.towards, self.type, self.order_id, self.account_cookie, self.status)
 
     def info(self):
         return vars(self)
@@ -110,12 +96,16 @@ class QA_Order():
 
     def from_dict(self, order):
         try:
+            # QA_util_log_info('QA_ORDER CHANGE: from {} change to {}'.format(
+            #     self.order_id, order['order_id']))
             self.price = order['price']
             self.date = order['date']
             self.datetime = order['datetime']
             self.sending_time = order['sending_time']  # 下单时间
             self.transact_time = order['transact_time']
             self.amount = order['amount']
+            self.data_type = order['data_type']
+            self.market_type = order['market_type']
             self.towards = order['towards']
             self.code = order['code']
             self.user = order['user']
@@ -130,55 +120,94 @@ class QA_Order():
         except Exception as e:
             QA_util_log_info('Failed to tran from dict')
 
-    def from_dataframe(self, dataframe):
-        bid_list = []
-        for item in QA_util_to_json_from_pandas(dataframe):
-            bid_list.append(self.from_dict(item))
-        return bid_list
 
-    def apply(self, order):
-        try:
-            self.price = order['price']
-            self.date = order['date']
-            self.datetime = order['datetime']
-            self.sending_time = order['sending_time']  # 下单时间
-            self.transact_time = order['transact_time']
-            self.amount = order['amount']
-            self.towards = order['towards']
-            self.code = order['code']
-            self.user = order['user']
-            self.strategy = order['strategy']
-            self.account_cookie = order['account_cookie']
-            self.type = order['type']
-            self.order_model = order['order_model']
-            self.amount_model = order['amount_model']
-            self.order_id = order['order_id']
-            self.trade_id = order['trade_id']
-            return self
-        except:
-            QA_util_log_info('Failed to tran from dict')
-
-
-class QA_Order_list():   # also the order tree
+class QA_OrderQueue():   # also the order tree
     """
-    一个待成交列表
+    一个待成交队列
+    这里面都是对于方法的封装
 
     """
 
-    def __init__(self, _list=[]):
-        self.list = _list
+    def __init__(self):
+        self.order_list = []
+        self.queue = pd.DataFrame()
 
-    def from_dataframe(self, dataframe):
+    def __repr__(self):
+        return '< QA_OrderQueue AMOUNT {} WAITING TRADE {} >'.format(len(self.queue), len(self.pending))
+
+    def __call__(self):
+        return self.queue
+
+    def _from_dataframe(self, dataframe):
         try:
-            self.list = [QA_Order().from_dict(item)
-                         for item in QA_util_to_json_from_pandas(dataframe)]
-            return self.list
+            self.order_list = [QA_Order().from_dict(item)
+                               for item in QA_util_to_json_from_pandas(dataframe)]
+            return self.order_list
         except:
             pass
 
+    def insert_order(self, order):
+        order.status = ORDER_STATUS.QUEUED
+        self.queue = self.queue.append(
+            order.to_df(), ignore_index=True)
+        self.queue.set_index('order_id', drop=False, inplace=True)
+        return order
+
+    @property
+    def order_ids(self):
+        return self.queue.index
+
+    def settle(self):
+        """结算
+
+        清空订单簿
+        """
+        self.queue = pd.DataFrame()
+
+    @property
+    def pending(self):
+        """选择待成交列表
+
+        [description]
+
+        Returns:
+            dataframe
+        """
+        try:
+            return self.queue.query('status!=200').query('status!=500').query('status!=400')
+        except:
+            return pd.DataFrame()
+
+    @property
+    def trade_list(self):
+        """批量交易
+
+        [description]
+
+        Returns:
+            list of orders
+        """
+
+        return self._from_dataframe(self.pending)
+
+    def query_order(self, order_id):
+        try:
+            return self.queue[order_id]
+        except:
+            return None
+
+    def set_status(self, order_id, new_status):
+        try:
+            if order_id in self.order_ids:
+                self.queue.loc[order_id, 'status'] = new_status
+            else:
+                pass
+        except:
+            return None
+
 
 if __name__ == '__main__':
-    ax = QA_Order().stock_day()
+    ax = QA_Order()
 
     print(ax.info())
     print(ax.to_df())

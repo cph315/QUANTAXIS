@@ -22,6 +22,6 @@
 # SOFTWARE.
 
 
-from QUANTAXIS.QATask.QA_Event import QA_Event
-from QUANTAXIS.QATask.QA_Queue_standard import QA_Queue
-from QUANTAXIS.QATask.QA_Task import QA_Engine, QA_Job
+from QUANTAXIS.QAEngine.QAEvent import QA_Event, QA_Job
+from QUANTAXIS.QAEngine.QATask import QA_Task
+from QUANTAXIS.QAEngine.QAThreadEngine import QA_Thread, QA_Engine
