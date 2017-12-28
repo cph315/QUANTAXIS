@@ -50,16 +50,16 @@ class QA_Broker(QA_Job):
         return '< QA_MARKET >'
 
     @abstractmethod
-    def receive_order(self, event, order, market_data=None):
+    def receive_order(self, event):
         raise NotImplementedError
 
-    @abstractmethod
     def get_data(self, order):
-        raise NotImplementedError
+        pass
 
-    @abstractmethod
     def warp(self, order):
-        raise NotImplementedError
+        pass
+
+    
 
 
 class QA_BROKER_EVENT(QA_Event):

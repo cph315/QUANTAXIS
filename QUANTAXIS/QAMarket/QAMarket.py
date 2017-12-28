@@ -23,37 +23,15 @@
 # SOFTWARE.
 
 
-import datetime
-import threading
-from concurrent.futures.process import ProcessPoolExecutor
-from concurrent.futures.thread import ThreadPoolExecutor
-from threading import Event, Thread, Timer
-
 from QUANTAXIS.QAARP.QAAccount import QA_Account
-from QUANTAXIS.QAEngine.QAEvent import QA_Event, QA_Job
+from QUANTAXIS.QAEngine.QAEvent import QA_Event
 from QUANTAXIS.QAEngine.QATask import QA_Task
-from QUANTAXIS.QAFetch.QAQuery import (QA_fetch_future_day,
-                                       QA_fetch_future_min,
-                                       QA_fetch_future_tick,
-                                       QA_fetch_index_day, QA_fetch_index_min,
-                                       QA_fetch_stock_day, QA_fetch_stock_min)
-from QUANTAXIS.QAFetch.QATdx import (QA_fetch_get_future_day,
-                                     QA_fetch_get_future_min,
-                                     QA_fetch_get_future_transaction,
-                                     QA_fetch_get_future_transaction_realtime,
-                                     QA_fetch_get_index_day,
-                                     QA_fetch_get_index_min,
-                                     QA_fetch_get_stock_day,
-                                     QA_fetch_get_stock_min)
 from QUANTAXIS.QAMarket.QABacktestBroker import QA_BacktestBroker
-from QUANTAXIS.QAMarket.QABroker import QA_Broker
-from QUANTAXIS.QAMarket.QADealer import QA_Dealer
 from QUANTAXIS.QAMarket.QAOrderHandler import QA_OrderHandler
 from QUANTAXIS.QAMarket.QARandomBroker import QA_RandomBroker
 from QUANTAXIS.QAMarket.QARealBroker import QA_RealBroker
 from QUANTAXIS.QAMarket.QASimulatedBroker import QA_SimulatedBroker
 from QUANTAXIS.QAMarket.QATrade import QA_Trade
-from QUANTAXIS.QAUtil.QALogs import QA_util_log_info
 from QUANTAXIS.QAUtil.QAParameter import (ACCOUNT_EVENT, AMOUNT_MODEL,
                                           BROKER_EVENT, BROKER_TYPE,
                                           MARKET_EVENT, MARKETDATA_TYPE,
@@ -101,6 +79,9 @@ class QA_Market(QA_Trade):
         else:
             return False
 
+    def get_account(self, account_cookie):
+        return self.session[account_cookie]
+
     def login(self, account_cookie, broker_name):
 
         if account_cookie not in self.session.keys():
@@ -145,7 +126,7 @@ class QA_Market(QA_Trade):
                 amount=amount, amount_model=amount_model, time=time, code=code, price=price,
                 order_model=order_model, towards=towards, market_type=market_type, data_type=data_type)
             self.event_queue.put(QA_Task(job=self.order_handler, event=QA_Event(
-                event_type=ORDER_EVENT.CREATE, message=order, callback=self.on_insert_order)))
+                event_type=ORDER_EVENT.CREATE, order=order, callback=self.on_insert_order)))
         else:
             pass
 
@@ -153,30 +134,34 @@ class QA_Market(QA_Trade):
         print(order)
 
     def _renew_account(self):
-        pass
+        for item in self.session.values():
+
+            self.event_queue.put(
+                QA_Task(
+                    job=item,
+                    event=QA_Event(
+                        event_type=ACCOUNT_EVENT.SETTLE)))
 
     def query_order(self, order_id):
         return self.order_handler.order_queue.query_order(order_id)
 
     def query_asset(self, account_cookie):
-        return self.session[account_cookie].cash
+        return self.get_account(account_cookie).assets
 
     def query_position(self, broker_name, account_cookie):
-        pass
+        return self.get_account(account_cookie).hold
 
-    def on_query_position(self, data):
-        pass
+    def query_cash(self, broker_name, account_cookie):
+        return self.get_account(account_cookie).cash_available
 
     def query_data_no_wait(self, broker_name, data_type, market_type, code, start, end=None):
         return self.broker[broker_name].run(event=QA_Event(
             event_type=MARKET_EVENT.QUERY_DATA,
-            message={
-                'data_type':  data_type,
-                'market_type': market_type,
-                'code': code,
-                'start': start,
-                'end': end
-            }
+            data_type=data_type,
+            market_type=market_type,
+            code=code,
+            start=start,
+            end=end
         ))
 
     def query_data(self, broker_name, data_type, market_type, code, start, end=None):
@@ -186,13 +171,11 @@ class QA_Market(QA_Trade):
                 engine=broker_name,
                 event=QA_Event(
                     event_type=MARKET_EVENT.QUERY_DATA,
-                    message={
-                        'data_type':  data_type,
-                        'market_type': market_type,
-                        'code': code,
-                        'start': start,
-                        'end': end
-                    },
+                    data_type=data_type,
+                    market_type=market_type,
+                    code=code,
+                    start=start,
+                    end=end,
                     callback=self.on_query_data
                 )
             ))
@@ -200,13 +183,11 @@ class QA_Market(QA_Trade):
     def query_currentbar(self, broker_name, market_type, code):
         return self.broker[broker_name].run(event=QA_Event(
             event_type=MARKET_EVENT.QUERY_DATA,
-            message={
-                'data_type':  MARKETDATA_TYPE.CURRENT,
-                'market_type': market_type,
-                'code': code,
-                'start': self.running_time,
-                'end': None
-            }
+            data_type=MARKETDATA_TYPE.CURRENT,
+            market_type=market_type,
+            code=code,
+            start=self.running_time,
+            end=None
         ))
 
     def on_query_data(self, data):
@@ -229,8 +210,7 @@ class QA_Market(QA_Trade):
             engine=broker_name,
             event=QA_Event(
                 event_type=BROKER_EVENT.TRADE,
-                message={
-                    'broker': self.broker[broker_name]},
+                broker=self.broker[broker_name],
                 callback=self._on_trade_event)))
 
     def _settle(self, broker_name):
@@ -240,7 +220,7 @@ class QA_Market(QA_Trade):
             engine=broker_name,
             event=QA_Event(
                 event_type=BROKER_EVENT.SETTLE,
-                message={'broker': self.broker[broker_name]})))
+                broker=self.broker[broker_name])))
         # 向事件线程发送ACCOUNT的SETTLE事件
         for item in self.session.values():
             if item.broker_type is broker_name:
@@ -267,7 +247,3 @@ if __name__ == '__main__':
     market = QA_Market()
 
     market.connect(QA.RUNNING_ENVIRONMENT.BACKETEST)
-    print(market)
-    market.login(a_1)
-    market.login(a_2)
-    print(market.get_account_id())

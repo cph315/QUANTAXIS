@@ -1,4 +1,4 @@
-# encoding: UTF-8
+# coding=utf-8
 #
 # The MIT License (MIT)
 #
@@ -23,36 +23,16 @@
 # SOFTWARE.
 
 
-from abc import abstractmethod
-
-"""
-QUANTAXIS EVENT  
-
-EVENT 是会被推送进QUEUE的任务class
-
-通过EVENT_QUEUE.get()拿到标准的event,然后执行
-"""
-# coding:utf-8
+class Calendar(firstweekday=0):
+    pass
 
 
-class QA_Job(object):
+class TRADE_TIME():
     def __init__(self, *args, **kwargs):
-        self.type = None
+        self.trading_days = None
 
-    def __repr__(self):
-        return '< QA_EVENT {} >'.format(self.type)
-
-    @abstractmethod
-    def run(self, event):
+    def get_trading_day(self):
         raise NotImplementedError
 
-
-class QA_Event(object):
-    def __init__(self, event_type=None, func=None, message=None, callback=False, *args, **kwargs):
-        self.event_type = event_type
-        self.func = func
-        self.message = message
-        self.callback = callback
-
-        for item in kwargs.keys():
-            exec('self.{}=kwargs[item]'.format(item))
+    def get_trading_time(self):
+        raise NotImplementedError
