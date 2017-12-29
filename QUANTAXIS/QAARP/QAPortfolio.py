@@ -22,13 +22,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import threading
 
-from QUANTAXIS.QAUtil import (QA_util_date_stamp, QA_util_date_valid, QA_util_random_with_topic,
-                              QA_util_log_info, QA_Setting)
 
 from QUANTAXIS.QAARP.QAAccount import QA_Account
-from QUANTAXIS.QAARP.QARisk import QA_Risk
+from QUANTAXIS.QAUtil import (QA_Setting, QA_util_log_info,
+                              QA_util_random_with_topic)
 
 
 class QA_Portfolio():
@@ -94,7 +92,7 @@ class QA_Portfolio():
 
         pass
 
-    def pull(self, account_cookie=None, collection=QA_Setting.client.quantaxis.account):
+    def pull(self, account_cookie=None, collection=QA_Setting().client.quantaxis.account):
         if account_cookie is None:
             for item in self.accounts.keys():
                 try:
@@ -115,7 +113,7 @@ class QA_Portfolio():
                     '{} sync wrong \\\n wrong info {}'.format(account_cookie, e))
             self.accounts[account_cookie].from_message(message)
 
-    def push(self, account_cookie=None, collection=QA_Setting.client.quantaxis.account):
+    def push(self, account_cookie=None, collection=QA_Setting().client.quantaxis.account):
         message = self.accounts[account_cookie].message
         if account_cookie is None:
             for item in self.accounts.keys():
