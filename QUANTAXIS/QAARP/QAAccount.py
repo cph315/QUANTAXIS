@@ -26,7 +26,7 @@ import datetime
 
 import pandas as pd
 
-from QUANTAXIS.QAEngine.QAEvent import QA_Job
+from QUANTAXIS.QAEngine.QAEvent import QA_Worker
 from QUANTAXIS.QAMarket.QAOrder import QA_Order
 from QUANTAXIS.QAUtil.QAParameter import (ACCOUNT_EVENT, AMOUNT_MODEL,
                                           BROKER_TYPE, MARKET_TYPE,
@@ -36,7 +36,7 @@ from QUANTAXIS.QAUtil.QARandom import QA_util_random_with_topic
 # 2017/6/4修改: 去除总资产的动态权益计算
 
 
-class QA_Account(QA_Job):
+class QA_Account(QA_Worker):
     """[QA_Account]
 
     [description]
@@ -48,7 +48,7 @@ class QA_Account(QA_Job):
     # 一个hold改成list模式
 
     def __init__(self, strategy_name='', user='', account_type=MARKET_TYPE.STOCK_DAY,
-                 hold=None, broker_type=BROKER_TYPE.BACKETEST,
+                 hold=None, broker=BROKER_TYPE.BACKETEST,
                  sell_available=None,
                  init_assest=None, order_queue=None,
                  cash=None, history=None, detail=None, assets=None,
@@ -78,7 +78,7 @@ class QA_Account(QA_Job):
 
         self.history = [] if history is None else history
         self.detail = [] if detail is None else detail
-        self.broker_type = broker_type
+        self.broker = broker
         self.account_cookie = QA_util_random_with_topic(
             'Acc') if account_cookie is None else account_cookie
         self.message = {
@@ -103,7 +103,7 @@ class QA_Account(QA_Job):
         }
 
     def __repr__(self):
-        return '<QA_Account {} Assets:{}>'.format(self.account_cookie, self.assets[-1])
+        return '< QA_Account {} Assets:{} >'.format(self.account_cookie, self.assets[-1])
 
     @property
     def latest_assets(self):

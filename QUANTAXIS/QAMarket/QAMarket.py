@@ -35,7 +35,7 @@ from QUANTAXIS.QAMarket.QATrade import QA_Trade
 from QUANTAXIS.QAUtil.QAParameter import (ACCOUNT_EVENT, AMOUNT_MODEL,
                                           BROKER_EVENT, BROKER_TYPE,
                                           MARKET_EVENT, MARKETDATA_TYPE,
-                                          ORDER_EVENT)
+                                          ORDER_EVENT, ORDER_MODEL)
 
 
 class QA_Market(QA_Trade):
@@ -51,7 +51,6 @@ class QA_Market(QA_Trade):
     def __init__(self, *args, **kwargs):
         super().__init__()
         self.session = {}
-        self.order_handler = QA_OrderHandler()
         self._broker = {BROKER_TYPE.BACKETEST: QA_BacktestBroker, BROKER_TYPE.RANODM: QA_RandomBroker,
                         BROKER_TYPE.REAL: QA_RealBroker, BROKER_TYPE.SIMULATION: QA_SimulatedBroker}
 
@@ -78,18 +77,35 @@ class QA_Market(QA_Trade):
         else:
             return False
 
-    def get_account(self, account_cookie):
-        return self.session[account_cookie]
-
-    def login(self, account_cookie, broker_name):
-
-        if account_cookie not in self.session.keys():
-            self.session[account_cookie] = QA_Account(
-                account_cookie=account_cookie, broker_type=broker_name)
+    def register(self, broker_name, broker):
+        if broker_name not in self._broker.keys():
+            self.broker[broker_name] = broker
+            self.trade_engine.create_kernal('{}'.format(broker_name))
+            self.trade_engine.start_kernal('{}'.format(broker_name))
+            return True
         else:
             return False
 
-    def logout(self, account_cookie):
+    def get_account(self, account_cookie):
+        return self.session[account_cookie]
+
+    def login(self, broker_name, account_cookie, account=None):
+        if account is None:
+            if account_cookie not in self.session.keys():
+                self.session[account_cookie] = QA_Account(
+                    account_cookie=account_cookie, broker=broker_name)
+                return True
+            else:
+                return False
+        else:
+            if account_cookie not in self.session.keys():
+                account.broker = broker_name
+                self.session[account_cookie] = account
+                return True
+            else:
+                return False
+
+    def logout(self, account_cookie, broker_name):
         if account_cookie not in self.session.keys():
             return False
         else:
@@ -99,7 +115,7 @@ class QA_Market(QA_Trade):
         return self.running_time
 
     def get_account_id(self):
-        return [item.account_cookie for item in self.session.values()]
+        return list(self.session.keys())
 
     def insert_order(self, account_id, amount, amount_model, time, code, price, order_model, towards, market_type, data_type, broker_name):
 
@@ -121,11 +137,17 @@ class QA_Market(QA_Trade):
             # if price > self.last_query_data[0][2] or price < self.last_query_data[0][3]:
             flag = True
         if flag:
-            order = self.session[account_id].send_order(
+            order = self.get_account(account_id).send_order(
                 amount=amount, amount_model=amount_model, time=time, code=code, price=price,
                 order_model=order_model, towards=towards, market_type=market_type, data_type=data_type)
-            self.event_queue.put(QA_Task(job=self.order_handler, event=QA_Event(
-                event_type=ORDER_EVENT.CREATE, order=order, callback=self.on_insert_order)))
+            self.event_queue.put(
+                QA_Task(
+                    worker=self.broker[self.get_account(account_id).broker],
+                    engine=self.get_account(account_id).broker,
+                    event=QA_Event(
+                        event_type=BROKER_EVENT.RECEIVE_ORDER,
+                        order=order,
+                        callback=self.on_insert_order)))
         else:
             pass
 
@@ -137,20 +159,30 @@ class QA_Market(QA_Trade):
 
             self.event_queue.put(
                 QA_Task(
-                    job=item,
+                    worker=item,
                     event=QA_Event(
                         event_type=ACCOUNT_EVENT.SETTLE)))
 
-    def query_order(self, order_id):
-        return self.order_handler.order_queue.query_order(order_id)
+    def query_order(self, broker_name, order_id):
 
-    def query_asset(self, account_cookie):
+        res = self.event_queue.put(
+            QA_Task(
+                worker=self.broker[broker_name],
+                engine=broker_name,
+                event=QA_Event(
+                    order_id=order_id
+                )
+            ))
+
+        return res
+
+    def query_assets(self, account_cookie):
         return self.get_account(account_cookie).assets
 
-    def query_position(self, broker_name, account_cookie):
+    def query_position(self, account_cookie):
         return self.get_account(account_cookie).hold
 
-    def query_cash(self, broker_name, account_cookie):
+    def query_cash(self, account_cookie):
         return self.get_account(account_cookie).cash_available
 
     def query_data_no_wait(self, broker_name, data_type, market_type, code, start, end=None):
@@ -166,7 +198,7 @@ class QA_Market(QA_Trade):
     def query_data(self, broker_name, data_type, market_type, code, start, end=None):
         self.event_queue.put(
             QA_Task(
-                job=self.broker[broker_name],
+                worker=self.broker[broker_name],
                 engine=broker_name,
                 event=QA_Event(
                     event_type=MARKET_EVENT.QUERY_DATA,
@@ -205,30 +237,33 @@ class QA_Market(QA_Trade):
     def _trade(self, broker_name):
         "内部函数"
         self.event_queue.put(QA_Task(
-            job=self.order_handler,
+            worker=self.broker[broker_name],
             engine=broker_name,
             event=QA_Event(
                 event_type=BROKER_EVENT.TRADE,
                 broker=self.broker[broker_name],
                 callback=self._on_trade_event)))
 
-    def _settle(self, broker_name):
+    def _settle(self, broker_name, callback=False):
         # 向事件线程发送BROKER的SETTLE事件
-        self.event_queue.put(QA_Task(
-            job=self.order_handler,
-            engine=broker_name,
-            event=QA_Event(
-                event_type=BROKER_EVENT.SETTLE,
-                broker=self.broker[broker_name])))
+
         # 向事件线程发送ACCOUNT的SETTLE事件
         for item in self.session.values():
-            if item.broker_type is broker_name:
+            if item.broker is broker_name:
                 self.event_queue.put(
                     QA_Task(
-                        job=item,
+                        worker=item,
                         engine=broker_name,
                         event=QA_Event(
                             event_type=ACCOUNT_EVENT.SETTLE)))
+        self.event_queue.put(QA_Task(
+            worker=self.broker[broker_name],
+            engine=broker_name,
+            event=QA_Event(
+                event_type=BROKER_EVENT.SETTLE,
+                broker=self.broker[broker_name],
+                callback=callback)))
+
 
     def _close(self):
         pass
