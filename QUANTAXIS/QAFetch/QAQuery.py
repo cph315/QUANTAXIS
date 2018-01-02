@@ -2,7 +2,7 @@
 #
 # The MIT License (MIT)
 #
-# Copyright (c) 2016-2017 yutiansut/QUANTAXIS
+# Copyright (c) 2016-2018 yutiansut/QUANTAXIS
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -27,17 +27,13 @@ import datetime
 
 import numpy
 import pandas as pd
-from bson.objectid import ObjectId
 from pandas import DataFrame
 
-from QUANTAXIS.QAData import QA_data_make_hfq, QA_data_make_qfq
 from QUANTAXIS.QAUtil import (QA_Setting, QA_util_date_stamp,
                               QA_util_date_valid, QA_util_log_info,
-                              QA_util_sql_mongo_sort_ASCENDING,
                               QA_util_sql_mongo_sort_DESCENDING,
                               QA_util_time_stamp, QA_util_to_json_from_pandas,
-                              QA_util_to_list_from_pandas, trade_date_sse)
-
+                              trade_date_sse)
 
 
 """

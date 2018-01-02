@@ -2,7 +2,7 @@
 #
 # The MIT License (MIT)
 #
-# Copyright (c) 2016-2017 yutiansut/QUANTAXIS
+# Copyright (c) 2016-2018 yutiansut/QUANTAXIS
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,11 +26,11 @@ import datetime
 
 import pandas as pd
 
-from QUANTAXIS.QAEngine.QAEvent import QA_Worker
+from QUANTAXIS.QAEngine.QAEvent import QA_Event, QA_Worker
 from QUANTAXIS.QAMarket.QAOrder import QA_Order
 from QUANTAXIS.QAUtil.QAParameter import (ACCOUNT_EVENT, AMOUNT_MODEL,
-                                          BROKER_TYPE, MARKET_TYPE,
-                                          ORDER_DIRECTION)
+                                          BROKER_TYPE, ENGINE_EVENT,
+                                          MARKET_TYPE, ORDER_DIRECTION)
 from QUANTAXIS.QAUtil.QARandom import QA_util_random_with_topic
 
 # 2017/6/4修改: 去除总资产的动态权益计算
@@ -101,28 +101,39 @@ class QA_Account(QA_Worker):
                 'running_time': str(datetime.datetime.now())
             }
         }
+        self.market_data = None
+        self._currenttime = None
+
 
     def __repr__(self):
         return '< QA_Account {} Assets:{} >'.format(self.account_cookie, self.assets[-1])
 
     @property
     def latest_assets(self):
+        'return the lastest assets'
         return self.assets[-1]
 
     @property
     def latest_cash(self):
+        'return the lastest cash'
         return self.cash[-1]
 
     @property
     def latest_hold(self):
+        'return the lastest hold'
         return self.hold
 
+    @property
+    def current_time(self):
+        return self._currenttime
+
     def init(self, init_assest=None):
+        'init methods'
         self.hold = []
         self.sell_available = [['date', 'code', 'price',
                                 'amount', 'order_id', 'trade_id']]
         self.history = []
-
+        self.init_assest = init_assest
         self.account_cookie = QA_util_random_with_topic(topic='Acc')
         self.assets = [self.init_assest]
         self.cash = [self.init_assest]
@@ -391,8 +402,15 @@ class QA_Account(QA_Worker):
         self.sell_available = pd.DataFrame(self.hold, columns=self._hold_headers).set_index(
             'code', drop=False)['amount'].groupby('code').sum()
 
-    def from_message(self, message):
+    def on_bar(self, event):
+        'while updating the market data'
+        print(event.market_data)
 
+    def on_tick(self, event):
+        'on tick event'
+        pass
+    def from_message(self, message):
+        'resume the account from standard message'
         self.account_cookie = message['header']['cookie']
         self.hold = message['body']['account']['hold']
         self.history = message['body']['account']['history']
@@ -400,20 +418,38 @@ class QA_Account(QA_Worker):
         self.assets = message['body']['account']['assets']
         self.detail = message['body']['account']['detail']
         return self
-
     def run(self, event):
+        'QA_WORKER method'
         if event.event_type is ACCOUNT_EVENT.SETTLE:
             self.settle()
 
         elif event.event_type is ACCOUNT_EVENT.UPDATE:
             self.receive_deal(event.message)
         elif event.event_type is ACCOUNT_EVENT.MAKE_ORDER:
-            pass
-
-
-class QA_Account_min(QA_Account):
-    pass
-
+            """generate order
+            if callback callback the order
+            if not return back the order
+            """
+            data = self.send_order(code=event.code, amount=event.amount, time=event.time,
+                                   amount_model=event.amount_model, towards=event.towards,
+                                   price=event.price, order_model=event.order_model,
+                                   data_type=event.data_type,
+                                   market_type=event.market_type)
+            if event.callback:
+                event.callback(data)
+            else:
+                return data
+        elif event.event_type is ENGINE_EVENT.UPCOMING_DATA:
+            """update the market_data
+            1. update the inside market_data struct
+            2. tell the on_bar methods
+            """
+            self._currenttime = event.market_data.datetime[-1]
+            if self.market_data is None:
+                self.market_data = event.market_data
+            else:
+                self.market_data.append(event.market_data)
+            self.on_bar(event)
 
 if __name__ == '__main__':
     account = QA_Account()

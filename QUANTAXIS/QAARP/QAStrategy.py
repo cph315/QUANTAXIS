@@ -2,7 +2,7 @@
 #
 # The MIT License (MIT)
 #
-# Copyright (c) 2016-2017 yutiansut/QUANTAXIS
+# Copyright (c) 2016-2018 yutiansut/QUANTAXIS
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -21,21 +21,15 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-from QUANTAXIS.QAUtil.QADate import QA_util_date_valid
 
 
-def QA_util_ensure_timeSerires(data):
-    pass
+from QUANTAXIS.QAARP.QAAccount import QA_Account
 
 
-def QA_util_ensure_dict(data):
-    pass
-
-
-def QA_util_ensure_date(data):
-
-    return QA_util_date_valid(data)
-
-
-def QA_util_ensure_ms(data):
-    pass
+class QA_Strategy(QA_Account):
+    """account
+    
+    [description]
+    """
+    def __init__(self):
+        super().__init__()

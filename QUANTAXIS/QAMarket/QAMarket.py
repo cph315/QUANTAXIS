@@ -2,7 +2,7 @@
 #
 # The MIT License (MIT)
 #
-# Copyright (c) 2016-2017 yutiansut/QUANTAXIS
+# Copyright (c) 2016-2018 yutiansut/QUANTAXIS
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -34,8 +34,9 @@ from QUANTAXIS.QAMarket.QASimulatedBroker import QA_SimulatedBroker
 from QUANTAXIS.QAMarket.QATrade import QA_Trade
 from QUANTAXIS.QAUtil.QAParameter import (ACCOUNT_EVENT, AMOUNT_MODEL,
                                           BROKER_EVENT, BROKER_TYPE,
-                                          MARKET_EVENT, MARKETDATA_TYPE,
-                                          ORDER_EVENT, ORDER_MODEL)
+                                          ENGINE_EVENT, MARKET_EVENT,
+                                          MARKETDATA_TYPE, ORDER_EVENT,
+                                          ORDER_MODEL)
 
 
 class QA_Market(QA_Trade):
@@ -61,8 +62,22 @@ class QA_Market(QA_Trade):
     def __repr__(self):
         return '< QA_MARKET with {} Broker >'.format(list(self.broker.keys()))
 
-    def time_change(self, time, callback=False):
-        self.running_time = time
+    def upcoming_data(self, data, callback=False):
+        # main thread
+        self.running_time = data.datetime[0]
+        for item in self.session.values():
+            self.event_queue.put(QA_Task(
+                worker=item,
+                event=QA_Event(
+                    event_type=ENGINE_EVENT.UPCOMING_DATA,
+                    market_data=data,
+                    send_order=self.insert_order
+                )
+            ))
+
+        print(self.running_time)
+        if callback:
+            callback()
         # self.event_queue.put(QA_Task(
         #     worker=pass))
 

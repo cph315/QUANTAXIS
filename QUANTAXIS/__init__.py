@@ -2,7 +2,7 @@
 #
 # The MIT License (MIT)
 #
-# Copyright (c) 2016-2017 yutiansut/QUANTAXIS
+# Copyright (c) 2016-2018 yutiansut/QUANTAXIS
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -86,13 +86,13 @@ from QUANTAXIS.QAMarket import (QA_Order, QA_OrderQueue, QA_OrderHandler,
                                 QA_Market, QA_Dealer,
                                 QA_RandomBroker, QA_SimulatedBroker, QA_RealBroker, QA_BacktestBroker)
 
-# Account,Risk,Portfolio
+# Account,Risk,Portfolio,User,Strategy
 
 from QUANTAXIS.QAARP.QAAccount import QA_Account
 from QUANTAXIS.QAARP.QAPortfolio import QA_Portfolio
 from QUANTAXIS.QAARP.QARisk import QA_Performace, QA_Risk
 from QUANTAXIS.QAARP.QAUser import QA_User
-
+from QUANTAXIS.QAARP.QAStrategy import QA_Strategy
 # Backtest
 from QUANTAXIS.QABacktest.QABacktest import QA_Backtest
 
@@ -112,8 +112,6 @@ from QUANTAXIS.QAData import (QA_data_tick_resample, QA_data_get_hfq, QA_data_ge
 from QUANTAXIS.QAAnalysis import *
 
 # Util
-from QUANTAXIS.QAUtil.QAType import (
-    QA_util_ensure_date, QA_util_ensure_dict, QA_util_ensure_ms, QA_util_ensure_timeSerires)
 
 
 from QUANTAXIS.QAUtil import (QA_util_date_stamp, QA_util_time_stamp, QA_util_ms_stamp, QA_util_date_valid, QA_util_calc_time,

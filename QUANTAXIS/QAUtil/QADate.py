@@ -2,7 +2,7 @@
 #
 # The MIT License (MIT)
 #
-# Copyright (c) 2016-2017 yutiansut/QUANTAXIS
+# Copyright (c) 2016-2018 yutiansut/QUANTAXIS
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -23,11 +23,9 @@
 # SOFTWARE.
 
 import datetime
-import re
 import threading
 import time
 
-from QUANTAXIS.QAUtil.QADate_trade import trade_date_sse
 from QUANTAXIS.QAUtil.QALogs import QA_util_log_info
 
 
