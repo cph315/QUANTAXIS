@@ -39,7 +39,7 @@ from QUANTAXIS.QAMarket.QABroker import QA_Broker
 from QUANTAXIS.QAMarket.QADealer import QA_Dealer
 from QUANTAXIS.QAUtil.QADate import QA_util_to_datetime
 from QUANTAXIS.QAUtil.QALogs import QA_util_log_info
-from QUANTAXIS.QAUtil.QAParameter import (AMOUNT_MODEL, BROKER_TYPE,
+from QUANTAXIS.QAUtil.QAParameter import (AMOUNT_MODEL, BROKER_TYPE,ORDER_MODEL,
                                           ENGINE_EVENT, MARKET_EVENT,
                                           MARKET_TYPE, BROKER_EVENT)
 from QUANTAXIS.QAMarket.QAOrderHandler import QA_OrderHandler
@@ -53,6 +53,24 @@ class QA_BacktestBroker(QA_Broker):
     股票/指数/期货/债券/ETF/基金
     @yutiansut
 
+
+    对于不同的市场规则:
+    股票市场 t+1
+    期货/期权/加密货币市场 t+0
+
+    股票/加密货币市场不允许卖空
+    期货/期权市场允许卖空
+
+    t+1的市场是
+    当日的买入 更新持仓- 不更新可卖数量- 资金冻结
+    当日的卖出 及时更新可用资金
+
+    t+0市场是:
+    当日买入 即时更新持仓和可卖
+    当日卖出 即时更新
+
+    卖空的规则是
+    允许无仓位的时候卖出证券(按市值和保证金比例限制算)
     """
 
     def __init__(self, commission_fee_coeff=0.0015, if_nondatabase=False):
@@ -103,7 +121,7 @@ class QA_BacktestBroker(QA_Broker):
         elif event.event_type is MARKET_EVENT.QUERY_ORDER:
             self.order_handler.run(event)
         elif event.event_type is ENGINE_EVENT.UPCOMING_DATA:
-            new_marketdata_dict = event.market_data.dicts   
+            new_marketdata_dict = event.market_data.dicts
             for item in new_marketdata_dict.keys():
                 if item not in self._quotation.keys():
                     self._quotation[item] = new_marketdata_dict[item]
@@ -111,13 +129,14 @@ class QA_BacktestBroker(QA_Broker):
                 self.broker_data = event.market_data
             else:
                 self.broker_data.append(event.market_data)
-            
+
         elif event.event_type is BROKER_EVENT.RECEIVE_ORDER:
             self.order_handler.run(event)
         elif event.event_type is BROKER_EVENT.TRADE:
-            self.order_handler.run(event)
+            event=self.order_handler.run(event)
+            event.message = 'trade'
             if event.callback:
-                event.callback('trade')
+                event.callback(event)
         elif event.event_type is BROKER_EVENT.SETTLE:
             self.order_handler.run(event)
             if event.callback:
@@ -154,7 +173,7 @@ class QA_BacktestBroker(QA_Broker):
 
         # 因为成交模式对时间的封装
 
-        if order.order_model == 'market' and order.price is None:
+        if order.order_model == ORDER_MODEL.MARKET and order.price is None:
 
             if order.type[-2:] == '01':
                 exact_time = str(datetime.datetime.strptime(
@@ -173,7 +192,7 @@ class QA_BacktestBroker(QA_Broker):
             order.price = (float(self.market_data["high"]) +
                            float(self.market_data["low"])) * 0.5
 
-        elif order.order_model == 'close' and order.price is None:
+        elif order.order_model == ORDER_MODEL.CLOSE and order.price is None:
             try:
                 order.datetime = self.market_data.datetime
             except:
@@ -183,7 +202,7 @@ class QA_BacktestBroker(QA_Broker):
                 return order
             order.price = float(self.market_data["close"])
 
-        elif order.order_model == 'strict' and order.price is None:
+        elif order.order_model == ORDER_MODEL.STRICT and order.price is None:
             '加入严格模式'
             if order.type[-2:] == '01':
                 exact_time = str(datetime.datetime.strptime(
