@@ -64,7 +64,6 @@ class QA_Order():
         else:
             pass
         self.sending_time = self.datetime if sending_time is None else sending_time  # 下单时间
-
         self.transact_time = transact_time
         self.amount = amount
         self.towards = towards  # side
@@ -192,10 +191,8 @@ class QA_OrderQueue():   # also the order tree
         return self._from_dataframe(self.pending)
 
     def query_order(self, order_id):
-        try:
-            return self.queue[order_id]
-        except:
-            return None
+
+        return self.queue.get(order_id, None)
 
     def set_status(self, order_id, new_status):
         try:
