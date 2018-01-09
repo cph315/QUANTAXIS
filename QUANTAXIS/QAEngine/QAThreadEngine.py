@@ -72,10 +72,10 @@ class QA_Thread(threading.Thread):
                     else:
                         # QA_util_log_info("From Engine %s  Engine will waiting for new task ..." % str(
                         #     threading.current_thread()))
-                        time.sleep(0.1)
+
                         pass
                 except:
-                    time.sleep(0.1)
+                    # time.sleep(0.1)
                     self.run()
                 # __res = self.qsize()  # 判断消息队列大小
                 # if __res > 0:
@@ -91,8 +91,9 @@ class QA_Thread(threading.Thread):
         self.__flag.set()    # 设置为True, 让线程停止阻塞
 
     def stop(self):
-        self.__flag.set()       # 将线程从暂停状态恢复, 如何已经暂停的话
-        self.__running.clear()        # 设置为False
+        # self.__flag.set()       # 将线程从暂停状态恢复, 如何已经暂停的话
+        self.__running.clear()
+        self.thread_stop = True        # 设置为False
 
     def __start(self):
         self.queue.start()
@@ -133,6 +134,10 @@ class QA_Engine(QA_Thread):
         # ENGINE线程创建一个事件线程
         self.kernals[name] = QA_Thread(name=name)
 
+    def register_kernal(self, name, kernal):
+        if name not in self.kernals.keys():
+            self.kernals[name] = kernal
+
     def start_kernal(self, name):
         self.kernals[name].start()
 
@@ -142,7 +147,22 @@ class QA_Engine(QA_Thread):
 
     def run_job(self, task):
         self.kernals[task.engine].put(task)
-        
+
+    def stop_all(self):
+        for item in self.kernals.values():
+            item.stop()
+        self.kernals = {}
+
+    def stop(self):
+        # self.__flag.set()       # 将线程从暂停状态恢复, 如何已经暂停的话
+        self.__running.clear()
+        self.thread_stop = True
+
+    def pause(self):
+        self.__flag.clear()
+
+    def resume(self):
+        self.__flag.set()    # 设置为True, 让线程停止阻塞
 
     def run(self):
         while self.__running.isSet():
@@ -164,21 +184,21 @@ class QA_Engine(QA_Thread):
 
                             self.queue.task_done()
                     else:
-                        # QA_util_log_info("From Engine %s  Engine will waiting for new task ..." % str(
-                        #     threading.current_thread()))
-                        #time.sleep(1)
                         pass
                 except Exception as e:
-                    #time.sleep(1)
+                    # time.sleep(1)
                     raise e
                     self.run()
-                __res = self.qsize()  # 判断消息队列大小
-                if __res > 0:
-                    pass
-                    # QA_util_log_info("From Engine %s: There are still %d tasks to do" % (
-                    #     str(threading.current_thread()), __res))
-                #threading.Timer(0.005, self.run)
-                #self.run()
+
+    def clear(self):
+        res = True
+        for item in self.kernals.values():
+            if not item.queue.empty():
+                res = False
+        if not self.queue.empty():
+            res = False
+        return res
+
 
 if __name__ == '__main__':
     import queue

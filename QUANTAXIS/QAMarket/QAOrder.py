@@ -41,13 +41,19 @@ Bid类全部被更名为Order类
 
 by yutiansut@2017/12/15
 
+
+@2018/1/9
+需要重新考虑 order的重复创建耗时问题
+
+order_frame 是一个管理性面板  但是还是需要一个缓存dict
+
 """
 
 
 class QA_Order():
     def __init__(self, price=None, date=None, datetime=None, sending_time=None, transact_time=None, amount=None, market_type=None, data_type=None,
                  towards=None, code=None, user=None, account_cookie=None, strategy=None, btype=None, order_model=None, amount_model=AMOUNT_MODEL.BY_AMOUNT,
-                 order_id=None, trade_id=None, status='100', *args, **kwargs):
+                 order_id=None, trade_id=None, status='100', callback=False, *args, **kwargs):
         self.price = price
         self.datetime = None
         if datetime is None and date is not None:
@@ -80,6 +86,7 @@ class QA_Order():
             topic='Order') if order_id is None else order_id
         self.trade_id = trade_id
         self.status = status
+        self.callback = callback
 
     def __repr__(self):
         return '< QA_Order datetime:{} code:{} price:{} towards:{} btype:{} order_id:{} account:{} status:{} >'.format(
@@ -116,6 +123,7 @@ class QA_Order():
             self.amount_model = order['amount_model']
             self.order_id = order['order_id']
             self.trade_id = order['trade_id']
+            self.callback = order['callback']
             return self
         except Exception as e:
             QA_util_log_info('Failed to tran from dict {}'.format(e))
@@ -131,6 +139,7 @@ class QA_OrderQueue():   # also the order tree
     def __init__(self):
         self.order_list = []
         self.queue = pd.DataFrame()
+        self._queue = {}
 
     def __repr__(self):
         return '< QA_OrderQueue AMOUNT {} WAITING TRADE {} >'.format(len(self.queue), len(self.pending))
@@ -151,6 +160,7 @@ class QA_OrderQueue():   # also the order tree
         self.queue = self.queue.append(
             order.to_df(), ignore_index=True)
         self.queue.set_index('order_id', drop=False, inplace=True)
+        self._queue[order.order_id] = order
         return order
 
     @property
@@ -163,6 +173,7 @@ class QA_OrderQueue():   # also the order tree
         清空订单簿
         """
         self.queue = pd.DataFrame()
+        self._queue = {}
 
     @property
     def pending(self):
@@ -188,7 +199,7 @@ class QA_OrderQueue():   # also the order tree
             list of orders
         """
 
-        return self._from_dataframe(self.pending)
+        return [self._queue[order_id] for order_id in self.pending.index]
 
     def query_order(self, order_id):
 
@@ -198,6 +209,7 @@ class QA_OrderQueue():   # also the order tree
         try:
             if order_id in self.order_ids:
                 self.queue.loc[order_id, 'status'] = new_status
+                self._queue[order_id].status = new_status
             else:
                 pass
         except:

@@ -23,6 +23,7 @@
 # SOFTWARE.
 
 
+import threading
 from QUANTAXIS.QAARP.QAPortfolio import QA_Portfolio
 from QUANTAXIS.QAARP.QAUser import QA_User
 from QUANTAXIS.QAEngine.QAEvent import QA_Event
@@ -33,7 +34,7 @@ from QUANTAXIS.QAUtil.QAParameter import (AMOUNT_MODEL, BROKER_EVENT,
                                           BROKER_TYPE, ENGINE_EVENT,
                                           MARKET_TYPE, MARKETDATA_TYPE,
                                           ORDER_DIRECTION, ORDER_MODEL)
-
+import time
 
 class QA_Backtest():
     """BACKTEST
@@ -93,7 +94,18 @@ class QA_Backtest():
                 event_type=ENGINE_EVENT.UPCOMING_DATA,
                 market_data=data))
             self.market.upcoming_data(
-                self.broker_name, data, after_success=self.run)
+                self.broker_name, data)
+            while True:
+                if self.market.trade_engine.kernals[self.broker_name].queue.empty():
+                    break
+            self.market._settle(self.broker_name)
+            while True:
+                if self.market.clear():
+                    break
+
+            
+            self.run()
+                
         except:
             self.after_success()
 
@@ -105,6 +117,15 @@ class QA_Backtest():
                 print(accounts.hold)
 
                 print(accounts.history_table)
+            
+        self.stop()
+
+    def stop(self):
+
+        self.market.trade_engine.stop_all()
+        self.market.trade_engine.stop()
+        print(threading.enumerate())
+
 
 
 if __name__ == '__main__':
