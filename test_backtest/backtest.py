@@ -23,22 +23,13 @@
 # SOFTWARE.
 
 
-from QUANTAXIS.QAARP.QAAccount import QA_Account
-from QUANTAXIS.QAARP.QAPortfolio import QA_Portfolio
+from QUANTAXIS.QAARP.QARisk import QA_Risk
 from QUANTAXIS.QAARP.QAUser import QA_User
 from QUANTAXIS.QABacktest.QABacktest import QA_Backtest
-from QUANTAXIS.QAEngine.QAEvent import QA_Event
-from QUANTAXIS.QAFetch.QAQuery_Advance import QA_fetch_stock_day_adv
-from QUANTAXIS.QAMarket.QABacktestBroker import QA_BacktestBroker
-from QUANTAXIS.QAMarket.QAMarket import QA_Market
-from QUANTAXIS.QAUtil.QAParameter import (AMOUNT_MODEL, BROKER_EVENT,
-                                          BROKER_TYPE, ENGINE_EVENT,
-                                          MARKET_TYPE, FREQUENCE,
-                                          ORDER_DIRECTION, ORDER_MODEL)
-
-from test_backtest.strategy import MAStrategy
-from test_backtest.minstrategy import MAMINStrategy
 from QUANTAXIS.QAUtil.QALogs import QA_util_log_info
+from QUANTAXIS.QAUtil.QAParameter import FREQUENCE, MARKET_TYPE
+from test_backtest.minstrategy import MAMINStrategy
+from test_backtest.strategy import MAStrategy
 
 
 class Backtest(QA_Backtest):
@@ -47,14 +38,20 @@ class Backtest(QA_Backtest):
         super().__init__(market_type,  frequence, start, end, code_list, commission_fee)
         self.user = QA_User()
         mastrategy = MAStrategy()
+        maminstrategy = MAMINStrategy()
         self.portfolio, self.account = self.user.register_account(mastrategy)
-        QA_util_log_info(self.user.get_portfolio(self.portfolio).accounts)
-        QA_util_log_info(self.user.get_portfolio(
-            self.portfolio).get_account(self.account).cash)
 
     def after_success(self):
-        QA_util_log_info(self.user.get_portfolio(self.portfolio).get_account(
-            self.account).history_table)
+        QA_util_log_info(self.account.history_table)
+        risk = QA_Risk(self.account)
+
+        print(risk.assets)
+        print('annualize_return : {} %'.format(risk.annualize_return))
+        print('max_dropback : {} %'.format(risk.max_dropback))
+        print('profit : {} %'.format(risk.profit))
+        print('volatility : {}'.format(risk.volatility))
+
+        self.account.save()
 
 
 def run_daybacktest():
@@ -63,7 +60,7 @@ def run_daybacktest():
                         frequence=FREQUENCE.DAY,
                         start='2017-01-01',
                         end='2017-01-10',
-                        code_list=QA.QA_fetch_stock_block_adv().code[0:500],
+                        code_list=QA.QA_fetch_stock_block_adv().code[0:5],
                         commission_fee=0.00015)
     backtest.start_market()
 
@@ -86,7 +83,7 @@ def run_minbacktest():
 
 
 if __name__ == '__main__':
-    run_minbacktest()
+    run_daybacktest()
     # backtest._settle()
 
     # backtest.run()

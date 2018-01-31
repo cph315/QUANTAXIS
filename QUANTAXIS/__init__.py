@@ -32,7 +32,7 @@ by yutiansut
 2017/4/8
 """
 
-__version__ = '1.0.0'
+__version__ = '1.0.5'
 __author__ = 'yutiansut'
 logo = ' \n \
 ```````````````````````````````````````````````````````````````````````````````````````````````````````````````````````` \n \
@@ -68,6 +68,7 @@ from QUANTAXIS.QAFetch.QAQuery import (QA_fetch_trade_date,
                                        QA_fetch_future_tick, QA_fetch_stock_list, QA_fetch_stock_full, QA_fetch_stock_xdxr,
                                        QA_fetch_backtest_info, QA_fetch_backtest_history, QA_fetch_stock_block, QA_fetch_stock_info,
                                        QA_fetch_stock_name, QA_fetch_quotation, QA_fetch_quotations)
+from QUANTAXIS.QAFetch.QACrawler import QA_fetch_get_sh_margin, QA_fetch_get_sz_margin
 
 from QUANTAXIS.QAFetch.QAQuery_Advance import *
 
@@ -106,7 +107,7 @@ from QUANTAXIS.QAEngine import QA_Thread, QA_Event, QA_Worker, QA_Task, QA_Engin
 # Data
 from QUANTAXIS.QAData import (QA_data_tick_resample, QA_data_get_hfq, QA_data_get_qfq, QA_data_make_qfq, QA_data_stock_to_fq,
                               QA_data_make_hfq, QA_DataStruct_Stock_day, QA_DataStruct_Stock_min,
-                              QA_DataStruct_future_day, QA_DataStruct_future_min,
+                              QA_DataStruct_Future_day, QA_DataStruct_Future_min,
                               QA_DataStruct_Index_day, QA_DataStruct_Index_min,
                               QA_DataStruct_Stock_transaction, QA_DataStruct_Stock_block)
 # Analysis

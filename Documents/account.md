@@ -6,28 +6,32 @@
 - [账户/组合/策略的说明 QAARP模块](#账户组合策略的说明-qaarp模块)
     - [账户/组合/策略的关系](#账户组合策略的关系)
     - [创建自定义的策略](#创建自定义的策略)
+    - [深入了解策略的组成](#深入了解策略的组成)
 
 <!-- /TOC -->
 @yutiansut
+
 2018/1/26
+    
 在1.0版本以后,回测的策略是以继承账户类来进行的
 
 ## 账户/组合/策略的关系
-
+```json
 {
-  UserA:{
-    PortfolioA1:{
-      AccountA : Strategy1,
-      AccountB : Strategy2
-  },PortfolioA2:{
-      AccountC : Strategy3
-  }
-  UserB:{
-    PortfolioB1:{
-      AccountD : Strategy4
+  "User A":{
+    "PortfolioA1":{
+      "Account A" : "Strategy 1",
+      "Account B" : "Strategy 2"
+  },"Portfolio A2":{
+      "Account C" : "Strategy 3"
+  },
+  "User B":{
+    "Portfolio B1":{
+      "Account D" : "Strategy 4"
     }
   }
 }
+```
 
 ```python
 
@@ -144,6 +148,33 @@ class MAStrategy(QA_Strategy):
 
         except:
             pass
+
+
+```
+
+
+## 深入了解策略的组成
+
+
+QA_Strategy 类完全继承 QA_Account, 因此,策略可以完全调用account类中的属性
+
+```python
+
+self.history # dict形式 账户的历史交易
+self.history_table #pd.Dataframe 形式 账户的交易表
+self.cash # list格式 账户的现金表
+self.cash_table #pd.Dataframe 形式 账户的现金流量表
+self.hold #账户的最新持仓 
+self.latest_cash #账户的最近一次成功交易后的现金
+self.trade # 账户的每日/分钟交易表
+self.daily_cash # 账户的每日结算时的现金
+self.daily_hold # 账户每日结算的持仓
+self.current_time # 账户的当前时间
+
+# 账户的on_bar事件
+self.on_bar(self,event)
+
+event 事件封装了数据和方法*(包括 所需的行情数据/下单接口)
 
 
 ```

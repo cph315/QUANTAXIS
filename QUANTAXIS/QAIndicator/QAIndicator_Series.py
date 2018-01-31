@@ -33,6 +33,7 @@ import pandas as pd
 Series 类
 
 这个是下面以DataFrame为输入的基础函数
+return pd.Series format
 """
 
 
@@ -118,6 +119,18 @@ def REF(Series, N):
     var = Series.diff(N)
     var = Series - var
     return var
+
+
+def LAST(COND, N1, N2):
+    """表达持续性
+
+    Arguments:
+        COND {[type]} -- [description]
+        N1 {[type]} -- [description]
+        N2 {[type]} -- [description]
+    """
+
+    return COND.iloc[-N1:-N2].all()
 
 
 def STD(Series, N):

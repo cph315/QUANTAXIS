@@ -29,46 +29,68 @@
 
 综合性指标主要包括风险收益比，夏普比例，波动率，VAR，偏度，峰度等"""
 
+import math
+from functools import lru_cache
+
 import numpy as np
 import pandas as pd
-import math
-from QUANTAXIS.QAFetch.QAQuery_Advance import QA_fetch_stock_day_adv
-from QUANTAXIS.QAARP.QAAccount import QA_Account
+
+from QUANTAXIS.QAFetch.QAQuery_Advance import QA_fetch_stock_day_adv, QA_fetch_index_day_adv
+from QUANTAXIS.QAUtil.QAParameter import MARKET_TYPE
+from QUANTAXIS.QAUtil.QADate_trade import QA_util_get_trade_gap
 
 
-class QA_Risk(QA_Account):
+class QA_Risk():
     def __init__(self, account):
-        super().__init__()
-        self.from_message(account.message)
+        self.account = account
+        self.benchmark = None
 
+        self.fetch = {MARKET_TYPE.STOCK_CN: QA_fetch_stock_day_adv,
+                      MARKET_TYPE.INDEX_CN: QA_fetch_index_day_adv}
+        self.market_data = QA_fetch_stock_day_adv(
+            self.account.code, self.account.start_date, self.account.end_date)
 
+        self.assets = ((self.market_data.to_qfq().pivot('close') * self.account.daily_hold).sum(
+            axis=1) + self.account.daily_cash.set_index('date').cash).fillna(method='pad')
 
-    @property
-    def market_data(self):
-        return QA_fetch_stock_day_adv()
-
-    def make_assets(self, market_data=None):
-        pass
-
-    @property
-    def assets(self):
-        pass
+        self.time_gap = QA_util_get_trade_gap(
+            self.account.start_date, self.account.end_date)
 
     @property
     def max_dropback(self):
-        pass
+        """最大回撤
+        """
+        return max([self.assets.iloc[idx::].max() - self.assets.iloc[idx::].min() for idx in range(len(self.assets))])/float(self.assets.iloc[0])
 
     @property
     def profit(self):
-        pass
+        """利润
+        """
+        return (float(self.assets.iloc[-1]) / float(self.assets.iloc[0])) - 1
 
     @property
     def annualize_return(self):
-        pass
+        """年化收益
+
+        Returns:
+            [type] -- [description]
+        """
+
+        return math.pow(float(self.assets.iloc[-1]) / float(self.assets.iloc[0]), 250.0 / float(self.time_gap)) - 1.0
 
     @property
     def volatility(self):
-        pass
+        """波动率
+
+        Returns:
+            [type] -- [description]
+        """
+
+        return self.assets.diff().std()
+
+    def set_benchmark(self, code, market_type):
+        self.benchmark = self.fetch[market_type](
+            code, self.account.start_date, self.account.end_date)
 
 
 class QA_Performace(QA_Risk):

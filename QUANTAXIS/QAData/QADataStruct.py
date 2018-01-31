@@ -33,6 +33,7 @@ import datetime
 import itertools
 import os
 import platform
+import statistics
 import sys
 import time
 import webbrowser
@@ -53,15 +54,15 @@ from QUANTAXIS.QAUtil import (DATABASE, QA_util_log_info,
                               QA_util_random_with_topic,
                               QA_util_to_json_from_pandas,
                               QA_util_to_pandas_from_json, trade_date_sse)
-from QUANTAXIS.QAUtil.QAParameter import MARKET_TYPE, FREQUENCE
 from QUANTAXIS.QAUtil.QADate import QA_util_to_datetime
+from QUANTAXIS.QAUtil.QAParameter import FREQUENCE, MARKET_TYPE
 
 
 class _quotation_base():
     '一个自适应股票/期货/指数的基础类'
 
     def __init__(self, DataFrame, dtype='undefined', if_fq='bfq', marketdata_type='None'):
-        self.data = DataFrame
+        self.data = DataFrame.sort_index()
         self.data_type = dtype
         self.type = dtype
         self.data_id = QA_util_random_with_topic('DATA', lens=3)
@@ -97,10 +98,10 @@ class _quotation_base():
 
     __radd__ = __add__
 
-    def __iadd__(self, DataStruct):
-        assert isinstance(DataStruct, _quotation_base)
-        assert self.is_same(DataStruct)
-        return self.append(DataStruct)
+    # def __iadd__(self, DataStruct):
+    #     assert isinstance(DataStruct, _quotation_base)
+    #     assert self.is_same(DataStruct)
+    #     return self.append(DataStruct)
 
     def __sub__(self, DataStruct):
         assert isinstance(DataStruct, _quotation_base)
@@ -109,27 +110,36 @@ class _quotation_base():
 
     __rsub__ = __sub__
 
-    def __isub__(self, DataStruct):
-        return self.drop(DataStruct)
-
+    # def __isub__(self, DataStruct):
+    #     return self.drop(DataStruct)
     @property
+    @lru_cache()
     def open(self):
+        'return open price series'
         return self.data.open
 
     @property
+    @lru_cache()
     def high(self):
+        'return high price series'
         return self.data.high
 
     @property
+    @lru_cache()
     def low(self):
+        'return low price series'
         return self.data.low
 
     @property
+    @lru_cache()
     def close(self):
+        'return close price series'
         return self.data.close
 
     @property
+    @lru_cache()
     def vol(self):
+        'return vol/volume'
         if 'volume' in self.data.columns:
             return self.data.volume
         elif 'vol' in self.data.columns:
@@ -138,6 +148,7 @@ class _quotation_base():
             return None
 
     @property
+    @lru_cache()
     def volume(self):
         if 'volume' in self.data.columns:
             return self.data.volume
@@ -148,7 +159,37 @@ class _quotation_base():
         else:
             return None
 
+    """为了方便调用  增加一些容易写错的情况
+    """
+
+    HIGH = high
+    High = high
+    LOW = low
+    Low = low
+    CLOSE = close
+    Close = close
+    VOLUME = vol
+    Volume = vol
+    VOL = vol
+    Vol = vol
+
     @property
+    @lru_cache()
+    def OPEN(self):
+        return self.open
+
+    @property
+    @lru_cache()
+    def Open(self):
+        return self.open
+
+    @property
+    @lru_cache()
+    def price(self):
+        return (self.open + self.high + self.low + self.close) / 4
+
+    @property
+    @lru_cache()
     def trade(self):
         if 'trade' in self.data.columns:
             return self.data.trade
@@ -156,6 +197,7 @@ class _quotation_base():
             return None
 
     @property
+    @lru_cache()
     def position(self):
         if 'position' in self.data.columns:
             return self.data.position
@@ -163,6 +205,7 @@ class _quotation_base():
             return None
 
     @property
+    @lru_cache()
     def date(self):
         try:
             return self.data.index.levels[0] if 'date' in self.data.index.names else self.data['date']
@@ -170,53 +213,177 @@ class _quotation_base():
             return None
 
     @property
+    @lru_cache()
     def datetime(self):
         '分钟线结构返回datetime 日线结构返回date'
         return self.data.index.levels[0]
 
     @property
+    @lru_cache()
+    def max(self):
+        return self.price.max()
+
+    @property
+    @lru_cache()
+    def min(self):
+        return self.price.min()
+
+    @property
+    @lru_cache()
+    def mean(self):
+        return self.price.mean()
+    # 一阶差分序列
+
+    @property
+    @lru_cache()
+    def price_diff(self):
+        '返回DataStruct.price的一阶差分'
+        return self.price.diff(1)
+
+    # 样本方差(无偏估计) population variance
+    @property
+    @lru_cache()
+    def pvariance(self):
+        '返回DataStruct.price的方差 variance'
+        return statistics.pvariance(self.price)
+
+    # 方差
+    @property
+    @lru_cache()
+    def variance(self):
+        '返回DataStruct.price的方差 variance'
+        return statistics.variance(self.price)
+    # 标准差
+
+    @property
+    @lru_cache()
+    def bar_pct_change(self):
+        '返回bar的涨跌幅'
+        return (self.close - self.open) / self.open
+
+    @property
+    @lru_cache()
+    def stdev(self):
+        '返回DataStruct.price的样本标准差 Sample standard deviation'
+        return statistics.stdev(self.price)
+    # 总体标准差
+
+    @property
+    @lru_cache()
+    def pstdev(self):
+        '返回DataStruct.price的总体标准差 Population standard deviation'
+        return statistics.pstdev(self.price)
+
+    # 调和平均数
+    @property
+    @lru_cache()
+    def mean_harmonic(self):
+        '返回DataStruct.price的调和平均数'
+        return statistics.harmonic_mean(self.price)
+
+    # 众数
+    @property
+    @lru_cache()
+    def mode(self):
+        '返回DataStruct.price的众数'
+        return statistics.mode(self.price)
+
+    # 振幅
+    @property
+    @lru_cache()
+    def amplitude(self):
+        '返回DataStruct.price的百分比变化'
+        return self.max - self.min
+    # 偏度 Skewness
+
+    @property
+    @lru_cache()
+    def skewnewss(self):
+        '返回DataStruct.price的偏度'
+        return self.price.skew()
+    # 峰度Kurtosis
+
+    @property
+    @lru_cache()
+    def kurtosis(self):
+        '返回DataStruct.price的峰度'
+        return self.price.kurt()
+    # 百分数变化
+
+    @property
+    @lru_cache()
+    def pct_change(self):
+        '返回DataStruct.price的百分比变化'
+        return self.price.pct_change()
+
+    # 平均绝对偏差
+    @property
+    @lru_cache()
+    def mad(self):
+        '平均绝对偏差'
+        return self.price.mad()
+
+    @property
+    @lru_cache()
     def panel_gen(self):
+        '返回一个基于bar的面板迭代器'
         for item in self.index.levels[0]:
             yield self.new(self.data.xs(item, level=0).set_index(self.index.names, drop=False), dtype=self.type, if_fq=self.if_fq)
 
     @property
+    @lru_cache()
     def security_gen(self):
+        '返回一个基于代码的迭代器'
         for item in self.index.levels[1]:
             yield self.data.xs(item, level=1)
 
-    def append(self, DataStruct):
-        assert isinstance(DataStruct, _quotation_base)
-        assert self.is_same(DataStruct)
-        self.data = self.data.append(DataStruct.data).drop_duplicates(
-        ).set_index(self.index.names, drop=False)
-        return self
+    # def append(self, DataStruct):
+    #     assert isinstance(DataStruct, _quotation_base)
+    #     assert self.is_same(DataStruct)
+    #     self.data = self.data.append(DataStruct.data).drop_duplicates(
+    #     ).set_index(self.index.names, drop=False)
+    #     return self
 
-    def drop(self, DataStruct):
-        assert isinstance(DataStruct, _quotation_base)
-        assert self.is_same(DataStruct)
-        self.data = self.data.drop(DataStruct.index).set_index(
-            self.index.names, drop=False)
-        return self
+    # def drop(self, DataStruct):
+    #     assert isinstance(DataStruct, _quotation_base)
+    #     assert self.is_same(DataStruct)
+    #     self.data = self.data.drop(DataStruct.index).set_index(
+    #         self.index.names, drop=False)
+    #     return self
 
     @property
+    @lru_cache()
     def index(self):
+        '返回结构体的索引'
         return self.data.index
 
     @property
+    @lru_cache()
     def code(self):
+        '返回结构体中的代码'
         return self.data.index.levels[1]
 
     @property
+    @lru_cache()
     def dicts(self):
+        '返回dict形式数据'
         return self.to_dict('index')
 
+    @property
+    @lru_cache()
+    def len(self):
+        '返回结构的长度'
+        return len(self.data)
+
     def get_data(self, time, code):
+        'give the time,code tuple and turn the dict'
         try:
             return self.dicts[(QA_util_to_datetime(time), str(code))]
         except Exception as e:
             raise e
 
     def plot(self, code=None):
+        'plot the market_data'
         if code is None:
             path_name = '.' + os.sep + 'QA_' + self.type + \
                 '_codepackage_' + self.if_fq + '.html'
@@ -260,10 +427,6 @@ class _quotation_base():
             QA_util_log_info(
                 'The Pic has been saved to your path: {}'.format(path_name))
 
-    @property
-    def len(self):
-        return len(self.data)
-
     def query(self, context):
         return self.data.query(context)
 
@@ -301,6 +464,11 @@ class _quotation_base():
 
     def to_dict(self, orient='dict'):
         return self.data.to_dict(orient)
+
+    def to_hdf(self, place, name):
+        'IO --> hdf5'
+        self.data.to_hdf(place, name)
+        return place, name
 
     def is_same(self, DataStruct):
         if self.type == DataStruct.type and self.if_fq == DataStruct.if_fq:
@@ -345,6 +513,9 @@ class _quotation_base():
                 return self.new(self.data[self.data['datetime'] >= start][self.data['datetime'] <= end].set_index(['datetime', 'code'], drop=False), self.type, self.if_fq)
             else:
                 return self.new(self.data[self.data['datetime'] >= start].set_index(['datetime', 'code'], drop=False), self.type, self.if_fq)
+
+    def select_month(self, month):
+        return self.new(self.data.loc[month, slice(None)], self.type, self.if_fq)
 
     def select_time_with_gap(self, time, gap, method):
 
@@ -416,10 +587,10 @@ class QA_DataStruct_Stock_day(_quotation_base):
         super().__init__(DataFrame, dtype, if_fq)
         if 'high_limit' not in self.data.columns:
             self.data['high_limit'] = round(
-                (self.data.close.shift(-1) + 0.0002) * 1.1, 2)
+                (self.data.close.shift(1) + 0.0002) * 1.1, 2)
         if 'low_limit' not in self.data.columns:
             self.data['low_limit'] = round(
-                (self.data.close.shift(-1) + 0.0002) * 0.9, 2)
+                (self.data.close.shift(1) + 0.0002) * 0.9, 2)
 
     def __repr__(self):
         return '< QA_DataStruct_Stock_day with {} securities >'.format(len(self.code))
@@ -427,7 +598,10 @@ class QA_DataStruct_Stock_day(_quotation_base):
 
     def to_qfq(self):
         if self.if_fq is 'bfq':
-            if len(self.code) < 20:
+            if len(self.code) < 1:
+                self.if_fq = 'qfq'
+                return self
+            elif len(self.code) < 20:
                 return self.new(pd.concat(list(map(
                     lambda x: QA_data_stock_to_fq(self.data[self.data['code'] == x]), self.code))), self.type, 'qfq')
             else:
@@ -440,8 +614,12 @@ class QA_DataStruct_Stock_day(_quotation_base):
 
     def to_hfq(self):
         if self.if_fq is 'bfq':
-            return self.new(pd.concat(list(map(lambda x: QA_data_stock_to_fq(
-                self.data[self.data['code'] == x], 'hfq'), self.code))), self.type, 'hfq')
+            if len(self.code) < 1:
+                self.if_fq = 'hfq'
+                return self
+            else:
+                return self.new(pd.concat(list(map(lambda x: QA_data_stock_to_fq(
+                    self.data[self.data['code'] == x], 'hfq'), self.code))), self.type, 'hfq')
         else:
             QA_util_log_info(
                 'none support type for qfq Current type is: %s' % self.if_fq)
@@ -457,6 +635,7 @@ class QA_DataStruct_Stock_day(_quotation_base):
         '跌停价'
         return self.data.low_limit
 
+
 class QA_DataStruct_Stock_min(_quotation_base):
     def __init__(self, DataFrame, dtype='stock_min', if_fq='bfq'):
         super().__init__(DataFrame, dtype, if_fq)
@@ -468,10 +647,10 @@ class QA_DataStruct_Stock_min(_quotation_base):
                 'code', 'open', 'high', 'low', 'close', 'volume', 'datetime', 'date']]
         if 'high_limit' not in self.data.columns:
             self.data['high_limit'] = round(
-                (self.data.close.shift(-1) + 0.0002) * 1.1, 2)
+                (self.data.close.shift(1) + 0.0002) * 1.1, 2)
         if 'low_limit' not in self.data.columns:
             self.data['low_limit'] = round(
-                (self.data.close.shift(-1) + 0.0002) * 0.9, 2)
+                (self.data.close.shift(1) + 0.0002) * 0.9, 2)
         self.type = dtype
         self.if_fq = if_fq
         self.mongo_coll = DATABASE.stock_min
@@ -482,7 +661,10 @@ class QA_DataStruct_Stock_min(_quotation_base):
 
     def to_qfq(self):
         if self.if_fq is 'bfq':
-            if len(self.code) < 20:
+            if len(self.code) < 1:
+                self.if_fq = 'qfq'
+                return self
+            elif len(self.code) < 20:
                 data = QA_DataStruct_Stock_min(pd.concat(list(map(lambda x: QA_data_stock_to_fq(
                     self.data[self.data['code'] == x]), self.code))).set_index(['datetime', 'code'], drop=False))
                 data.if_fq = 'qfq'
@@ -498,10 +680,14 @@ class QA_DataStruct_Stock_min(_quotation_base):
 
     def to_hfq(self):
         if self.if_fq is 'bfq':
-            data = QA_DataStruct_Stock_min(pd.concat(list(map(lambda x: QA_data_stock_to_fq(
-                self.data[self.data['code'] == x], 'hfq'), self.code))).set_index(['datetime', 'code'], drop=False))
-            data.if_fq = 'hfq'
-            return data
+            if len(self.code) < 1:
+                self.if_fq = 'hfq'
+                return self
+            else:
+                data = QA_DataStruct_Stock_min(pd.concat(list(map(lambda x: QA_data_stock_to_fq(
+                    self.data[self.data['code'] == x], 'hfq'), self.code))).set_index(['datetime', 'code'], drop=False))
+                data.if_fq = 'hfq'
+                return data
         else:
             QA_util_log_info(
                 'none support type for qfq Current type is:%s' % self.if_fq)
@@ -518,7 +704,7 @@ class QA_DataStruct_Stock_min(_quotation_base):
         return self.data.low_limit
 
 
-class QA_DataStruct_future_day(_quotation_base):
+class QA_DataStruct_Future_day(_quotation_base):
     def __init__(self, DataFrame, dtype='future_day', if_fq=''):
         self.type = 'future_day'
         self.data = DataFrame.ix[:, [
@@ -530,7 +716,7 @@ class QA_DataStruct_future_day(_quotation_base):
     __str__ = __repr__
 
 
-class QA_DataStruct_future_min(_quotation_base):
+class QA_DataStruct_Future_min(_quotation_base):
     def __init__(self, DataFrame, dtype='future_min', if_fq=''):
         self.type = 'future_day'
         self.data = DataFrame.ix[:, [
