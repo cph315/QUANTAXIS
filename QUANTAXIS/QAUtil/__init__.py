@@ -56,6 +56,9 @@ from QUANTAXIS.QAUtil.QADate_trade import (QA_util_date_gap,
 # list function
 from QUANTAXIS.QAUtil.QAList import (QA_util_diff_list,
                                      QA_util_multi_demension_list)
+
+# dict function
+from QUANTAXIS.QAUtil.QADict import QA_util_dict_remove_key
 # log
 from QUANTAXIS.QAUtil.QALogs import (QA_util_log_debug, QA_util_log_expection,
                                      QA_util_log_info)
@@ -86,3 +89,4 @@ from QUANTAXIS.QAUtil.QATransform import (QA_util_to_json_from_pandas,
                                           QA_util_to_pandas_from_list)
 # 网络相关
 from QUANTAXIS.QAUtil.QAWeb import QA_util_web_ping
+from QUANTAXIS.QAUtil.QAMail import QA_util_send_mail

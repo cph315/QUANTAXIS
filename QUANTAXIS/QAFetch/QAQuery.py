@@ -30,16 +30,17 @@ import pandas as pd
 from pandas import DataFrame
 
 from QUANTAXIS.QAUtil import (DATABASE, QA_Setting, QA_util_date_stamp,
-                              QA_util_date_valid, QA_util_log_info,
+                              QA_util_date_valid, QA_util_dict_remove_key,
+                              QA_util_log_info,
                               QA_util_sql_mongo_sort_DESCENDING,
                               QA_util_time_stamp, QA_util_to_json_from_pandas,
                               trade_date_sse)
+
+
 """
 按要求从数据库取数据，并转换成numpy结构
 
 """
-
-
 
 
 def QA_fetch_stock_day(code, start, end, format='numpy', frequence='day', collections=DATABASE.stock_day):
@@ -55,7 +56,7 @@ def QA_fetch_stock_day(code, start, end, format='numpy', frequence='day', collec
                 "$lte": QA_util_date_stamp(end),
                 "$gte": QA_util_date_stamp(start)}})
         if format in ['json', 'dict']:
-            return [data for data in cursor]
+            return [QA_util_dict_remove_key(data, '_id') for data in cursor]
 
         for item in cursor:
             __data.append([str(item['code']), float(item['open']), float(item['high']), float(
@@ -140,7 +141,7 @@ def QA_fetch_stock_list(collections=DATABASE.stock_list):
 def QA_fetch_stock_full(date, format='numpy', collections=DATABASE.stock_day):
     '获取全市场的某一日的数据'
     Date = str(date)[0:10]
-    if QA_util_date_valid(Date) == True:
+    if QA_util_date_valid(Date) is True:
 
         __data = []
         for item in collections.find({
@@ -281,7 +282,6 @@ def QA_fetch_stock_xdxr(code, format='pd', collections=DATABASE.stock_xdxr):
         {'code': code})]).drop(['_id'], axis=1)
     data['date'] = pd.to_datetime(data['date'])
     return data.set_index('date', drop=False)
-    # data['date']=data['date'].apply(lambda)
 
 
 def QA_fetch_backtest_info(user=None, account_cookie=None, strategy=None, stock_list=None, collections=DATABASE.backtest_info):
@@ -322,27 +322,43 @@ def QA_fetch_stock_name(code, collections=DATABASE.stock_list):
         QA_util_log_info(e)
 
 
-def QA_fetch_quotation(code, db=DATABASE):
+def QA_fetch_quotation(code, date=datetime.date.today(), db=DATABASE):
+    '获取某一只实时5档行情的存储结果'
     try:
         collections = db.get_collection(
-            'realtime_{}'.format(datetime.date.today()))
-        return collections.find({'code': code}).sort('datetime', QA_util_sql_mongo_sort_DESCENDING)[0]
+            'realtime_{}'.format(date))
+        return pd.DataFrame([item for item in collections.find(
+            {'code': code})]).drop(['_id'], axis=1).set_index('datetime', drop=False).sort_index()
     except Exception as e:
         raise e
 
 
-def QA_fetch_quotations(time=None, db=DATABASE):
-
+def QA_fetch_quotations(date=datetime.date.today(), db=DATABASE):
+    '获取全部实时5档行情的存储结果'
     try:
         collections = db.get_collection(
-            'realtime_{}'.format(datetime.date.today()))
-        times = collections.find({'code': '000001'}).sort(
-            'datetime', QA_util_sql_mongo_sort_DESCENDING)[0]['datetime']
-
-        return pd.DataFrame([item for item in collections.find({'datetime': times})]).drop(['_id'], axis=1)
+            'realtime_{}'.format(date))
+        return pd.DataFrame([item for item in collections.find(
+            {})]).drop(['_id'], axis=1).set_index('datetime', drop=False).sort_index()
     except Exception as e:
         raise e
+
+
+def QA_fetch_account(message={}, db=DATABASE):
+    """get the account
+
+    Arguments:
+        query_mes {[type]} -- [description]
+
+    Keyword Arguments:
+        collection {[type]} -- [description] (default: {DATABASE})
+
+    Returns:
+        [type] -- [description]
+    """
+    collection = DATABASE.account
+    return [QA_util_dict_remove_key(res, '_id') for res in collection.find(message)]
 
 
 if __name__ == '__main__':
-    print(QA_fetch_quotations())
+    print(QA_fetch_quotations('000001'))

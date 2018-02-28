@@ -159,6 +159,14 @@ class _quotation_base():
         else:
             return None
 
+    @property
+    @lru_cache()
+    def amount(self):
+        if 'amount' in self.data.columns:
+            return self.data.amount
+        else:
+            return self.vol * self.price * 100
+
     """为了方便调用  增加一些容易写错的情况
     """
 
@@ -286,7 +294,10 @@ class _quotation_base():
     @lru_cache()
     def mode(self):
         '返回DataStruct.price的众数'
-        return statistics.mode(self.price)
+        try:
+            return statistics.mode(self.price)
+        except:
+            return None
 
     # 振幅
     @property
@@ -298,14 +309,14 @@ class _quotation_base():
 
     @property
     @lru_cache()
-    def skewnewss(self):
+    def skew(self):
         '返回DataStruct.price的偏度'
         return self.price.skew()
     # 峰度Kurtosis
 
     @property
     @lru_cache()
-    def kurtosis(self):
+    def kurt(self):
         '返回DataStruct.price的峰度'
         return self.price.kurt()
     # 百分数变化
@@ -446,6 +457,30 @@ class _quotation_base():
 
     def reverse(self):
         return self.new(self.data[::-1])
+
+    def tail(self, lens):
+        """返回最后Lens个值的DataStruct
+
+        Arguments:
+            lens {[type]} -- [description]
+
+        Returns:
+            [type] -- [description]
+        """
+
+        return self.new(self.data.tail(lens))
+
+    def head(self, lens):
+        """返回最前lens个值的DataStruct
+
+        Arguments:
+            lens {[type]} -- [description]
+
+        Returns:
+            [type] -- [description]
+        """
+
+        return self.new(self.data.head(lens))
 
     def show(self):
         return QA_util_log_info(self.data)
@@ -778,29 +813,89 @@ class QA_DataStruct_Stock_block():
 
     @property
     def len(self):
+        """返回DataStruct的长度
+
+        Returns:
+            [type] -- [description]
+        """
+
         return len(self.data)
 
     @property
     def block_name(self):
+        """返回所有的板块名
+
+        Returns:
+            [type] -- [description]
+        """
+
         return self.data.groupby('blockname').sum().index.unique().tolist()
 
     @property
     def code(self):
+        """返回唯一的证券代码
+
+        Returns:
+            [type] -- [description]
+        """
+
         return self.data.code.unique().tolist()
 
     def show(self):
+        """展示DataStruct
+
+        Returns:
+            dataframe -- [description]
+        """
+
         return self.data
 
     def get_code(self, code):
+        """getcode 获取某一只股票的板块
+
+        Arguments:
+            code {str} -- 股票代码
+
+        Returns:
+            DataStruct -- [description]
+        """
+
         return QA_DataStruct_Stock_block(self.data[self.data['code'] == code])
 
     def get_block(self, _block_name):
+        """getblock 获取板块
+
+        Arguments:
+            _block_name {[type]} -- [description]
+
+        Returns:
+            [type] -- [description]
+        """
+
         return QA_DataStruct_Stock_block(self.data[self.data['blockname'] == _block_name])
 
     def getdtype(self, dtype):
+        """getdtype
+
+        Arguments:
+            dtype {str} -- gn-概念/dy-地域/fg-风格/zs-指数
+
+        Returns:
+            [type] -- [description]
+        """
+
         return QA_DataStruct_Stock_block(self.data[self.data['type'] == dtype])
 
     def get_price(self, _block_name=None):
+        """get_price
+
+        Keyword Arguments:
+            _block_name {[type]} -- [description] (default: {None})
+
+        Returns:
+            [type] -- [description]
+        """
+
         if _block_name is not None:
             try:
                 code = self.data[self.data['blockname']
@@ -817,21 +912,152 @@ class QA_DataStruct_Stock_block():
 
 class QA_DataStruct_Stock_transaction():
     def __init__(self, DataFrame):
+        """Stock Transaction
+
+        Arguments:
+            DataFrame {pd.Dataframe} -- [input is one/multi day transaction]
+        """
+
         self.type = 'stock_transaction'
-        self.if_fq = 'None'
-        self.mongo_coll = DATABASE.stock_transaction
-        self.buyorsell = DataFrame['buyorsell']
-        self.price = DataFrame['price']
-        if 'volume' in DataFrame.columns:
-            self.vol = DataFrame['volume']
-        else:
-            self.vol = DataFrame['vol']
-        self.date = DataFrame['date']
-        self.time = DataFrame['time']
-        self.datetime = DataFrame['datetime']
-        self.order = DataFrame['order']
-        self.index = DataFrame.index
+
         self.data = DataFrame
+        if 'amount' not in DataFrame.columns:
+            if 'vol' in DataFrame.columns:
+                self.data['amount'] = self.data.vol * self.data.price * 100
+            elif 'volume' in DataFrame.columns:
+                self.data['amount'] = self.data.volume * self.data.price * 100
+        self.mongo_coll = DATABASE.stock_transaction
+
+    @property
+    @lru_cache()
+    def buyorsell(self):
+        """return the buy or sell towards 0--buy 1--sell 2--none
+
+        Decorators:
+            lru_cache
+
+        Returns:
+            [pd.Series] -- [description]
+        """
+
+        return self.data.buyorsell
+
+    @property
+    @lru_cache()
+    def price(self):
+        """return the deal price of tick transaction
+
+        Decorators:
+            lru_cache
+
+        Returns:
+            [type] -- [description]
+        """
+
+        return self.data.price
+
+    @property
+    @lru_cache()
+    def vol(self):
+        """return the deal volume of tick
+
+        Decorators:
+            lru_cache
+
+        Returns:
+            pd.Series -- volume of transaction
+        """
+
+        try:
+            return self.data.volume
+        except:
+            return self.data.vol
+
+    volume = vol
+
+    @property
+    @lru_cache()
+    def date(self):
+        """return the date of transaction
+
+        Decorators:
+            lru_cache
+
+        Returns:
+            pd.Series -- date of transaction
+        """
+
+        return self.data.date
+
+    @property
+    @lru_cache()
+    def time(self):
+        """return the exact time of transaction(to minute level)
+
+        Decorators:
+            lru_cache
+
+        Returns:
+            pd.Series -- till minute level 
+        """
+
+        return self.data.time
+
+    @property
+    @lru_cache()
+    def datetime(self):
+        """return the datetime of transaction
+
+        Decorators:
+            lru_cache
+
+        Returns:
+            pd.Series -- [description]
+        """
+
+        return self.data.datetime
+
+    @property
+    @lru_cache()
+    def order(self):
+        """return the order num of transaction/ for everyday change
+
+        Decorators:
+            lru_cache
+
+        Returns:
+            pd.series -- [description]
+        """
+
+        return self.data.order
+
+    @property
+    @lru_cache()
+    def index(self):
+        """return the transaction index
+
+        Decorators:
+            lru_cache
+
+        Returns:
+            [type] -- [description]
+        """
+
+        return self.data.index
+
+    @property
+    @lru_cache()
+    def amount(self):
+        """return current tick trading amount
+
+        Decorators:
+            lru_cache
+
+        Returns:
+            [type] -- [description]
+        """
+
+        return self.data.amount
 
     def __repr__(self):
         return '< QA_DataStruct_Stock_Transaction >'
@@ -840,10 +1066,72 @@ class QA_DataStruct_Stock_transaction():
         return self.data
 
     def resample(self, type_='1min'):
+        """resample methods
+
+        Returns:
+            [type] -- [description]
+        """
+
         return QA_DataStruct_Stock_min(QA_data_tick_resample(self.data, type_))
 
+    def get_big_orders(self, bigamount=1000000):
+        """return big order
 
-class QA_DataStruct_Stock_realtime():
+        Keyword Arguments:
+            bigamount {[type]} -- [description] (default: {1000000})
+
+        Returns:
+            [type] -- [description]
+        """
+
+        return self.data.query('amount>={}'.format(bigamount))
+
+    def get_medium_order(self, lower=200000, higher=1000000):
+        """return medium 
+
+        Keyword Arguments:
+            lower {[type]} -- [description] (default: {200000})
+            higher {[type]} -- [description] (default: {1000000})
+
+        Returns:
+            [type] -- [description]
+        """
+
+        return self.data.query('amount>={}'.format(lower)).query('amount<={}'.format(higher))
+
+    def get_small_order(self, smallamount=200000):
+        """return small level order
+
+        Keyword Arguments:
+            smallamount {[type]} -- [description] (default: {200000})
+
+        Returns:
+            [type] -- [description]
+        """
+
+        return self.data.query('amount<={}'.format(smallamount))
+
+    def get_time(self, start, end=None):
+        if end is None:
+            return self.data.loc[start]
+        else:
+            return self.data.loc[start:end]
+
+
+class _realtime_base():
+    """
+    realtime 基类
+
+    主要字段有:
+    code/name
+    time
+    open/high/low
+
+    买卖报价队列:(不同的可能不一样 只提供list)
+    ask_list[ask1_price/ask1_volume|ask2_price/ask2_volume|ask3_price/ask3_volume....]
+    bid_list[bid1_price/bid1_volume|bid2_price/bid2_volume|bid3_price/bid3_volume....]
+    """
+
     def __init__(self, market_data):
         if isinstance(market_data, dict):
             self.market_data = QA_util_to_pandas_from_json(market_data)
@@ -853,27 +1141,52 @@ class QA_DataStruct_Stock_realtime():
 
     @property
     def open(self):
-        return self.market_data.open
+        try:
+            return self.market_data.open
+        except:
+            return None
 
     @property
     def price(self):
-        return self.market_data.price
+        try:
+            return self.market_data.price
+        except:
+            return None
 
     @property
     def high(self):
-        return self.market_data.high
-
+        try:
+            return self.market_data.high
+        except:
+            return None
     @property
     def low(self):
-        return self.market_data.low
+        try:
+            return self.market_data.low
+        except:
+            return None
 
     @property
     def code(self):
-        return self.code
-
+        try:
+            return self.market_data.code
+        except:
+            return None
     @property
     def last_close(self):
-        return self.market_data.last_close
+        try:
+            return self.market_data.last_close
+        except:
+            return None
+
+
+class QA_DataStruct_Stock_realtime(_realtime_base):
+    def __init__(self, market_data):
+        if isinstance(market_data, dict):
+            self.market_data = QA_util_to_pandas_from_json(market_data)
+
+        elif isinstance(market_data, pd.DataFrame):
+            self.market_data = market_data
 
     @property
     def cur_vol(self):
@@ -901,10 +1214,10 @@ class QA_DataStruct_Stock_realtime():
     def bid_list(self):
         return self.market_data.ix[:, ['bid1', 'bid_vol1', 'bid2', 'bid_vol2',  'bid3', 'bid_vol3', 'bid4', 'bid_vol4', 'bid5', 'bid_vol5']]
 
-    [['datetime', 'active1', 'active2', 'last_close', 'code', 'open', 'high', 'low', 'price', 'cur_vol',
-      's_vol', 'b_vol', 'vol', 'ask1', 'ask_vol1', 'bid1', 'bid_vol1', 'ask2', 'ask_vol2',
-                        'bid2', 'bid_vol2', 'ask3', 'ask_vol3', 'bid3', 'bid_vol3', 'ask4',
-                        'ask_vol4', 'bid4', 'bid_vol4', 'ask5', 'ask_vol5', 'bid5', 'bid_vol5']]
+    # [['datetime', 'active1', 'active2', 'last_close', 'code', 'open', 'high', 'low', 'price', 'cur_vol',
+    #   's_vol', 'b_vol', 'vol', 'ask1', 'ask_vol1', 'bid1', 'bid_vol1', 'ask2', 'ask_vol2',
+    #                     'bid2', 'bid_vol2', 'ask3', 'ask_vol3', 'bid3', 'bid_vol3', 'ask4',
+    #                     'ask_vol4', 'bid4', 'bid_vol4', 'ask5', 'ask_vol5', 'bid5', 'bid_vol5']]
 
 
 class QA_DataStruct_Security_list():
@@ -928,23 +1241,3 @@ class QA_DataStruct_Security_list():
 
     def get_etf(self):
         return self.data
-
-
-class QA_DataStruct_Market_reply():
-    pass
-
-
-class QA_DataStruct_Market_order():
-    pass
-
-
-class QA_DataStruct_Market_order_queue():
-    pass
-
-
-class QA_DataStruct_ARP_account():
-    pass
-
-
-class QA_DataStruct_Quantaxis_error():
-    pass

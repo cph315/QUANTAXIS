@@ -1,7 +1,7 @@
 # Summary
 
 * [关于QUANTAXIS](README.md)
-
+* [捐赠感谢](CONTRIBUTING.md)
 
 
 * [部署](Documents/install.md)
@@ -18,12 +18,11 @@
 * [QUANTAXIS行情研究](Documents/analysis.md)
 * [QUANTAXIS的账户结构](Documents/account.md)
 * [QUANTAXIS回测分析](Documents/backtestanalysis.md)
+* [QUANTAXIS WEB API说明](Documents/backendapi.md)
 * [常见策略整理](Documents/strategy.md)
-
-
+* [QUANTAXIS的开发列表](job_list.md)
 
 * [FAQ](Documents/FAQ.md)
-* [捐赠感谢](CONTRIBUTING.md)
 * [协议](Documents/readme.md)
 
 

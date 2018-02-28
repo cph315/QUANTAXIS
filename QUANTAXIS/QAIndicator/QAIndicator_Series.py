@@ -129,7 +129,9 @@ def LAST(COND, N1, N2):
         N1 {[type]} -- [description]
         N2 {[type]} -- [description]
     """
-
+    N2=1 if N2==0 else N2
+    assert N2>0
+    assert N1>N2
     return COND.iloc[-N1:-N2].all()
 
 
@@ -143,6 +145,9 @@ def AVEDEV(Series, N):
 
 
 def MACD(Series, FAST, SLOW, MID):
+    """macd指标 仅适用于Series
+    对于DATAFRAME的应用请使用QA_indicator_macd
+    """
     EMAFAST = EMA(Series, FAST)
     EMASLOW = EMA(Series, SLOW)
     DIFF = EMAFAST - EMASLOW
