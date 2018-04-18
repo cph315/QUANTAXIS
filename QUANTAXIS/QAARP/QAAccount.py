@@ -24,7 +24,7 @@
 
 
 import pandas as pd
-
+import datetime
 from QUANTAXIS.QAEngine.QAEvent import QA_Worker
 from QUANTAXIS.QAMarket.QAOrder import QA_Order
 from QUANTAXIS.QASU.save_account import save_account, update_account
@@ -68,11 +68,11 @@ class QA_Account(QA_Worker):
 
     def __init__(self, strategy_name=None, user_cookie=None, market_type=MARKET_TYPE.STOCK_CN, frequence=FREQUENCE.DAY,
                  broker=BROKER_TYPE.BACKETEST, portfolio_cookie=None, account_cookie=None,
-                 sell_available=None, init_assets=None, cash=None, history=None,
+                 sell_available={}, init_assets=None, cash=None, history=None,
                  margin_level=False, allow_t0=False, allow_sellopen=False):
         super().__init__()
         self._history_headers = ['datetime', 'code', 'price',
-                                 'amount', 'order_id', 'trade_id', 'commission', 'tax']
+                                 'amount', 'order_id', 'trade_id', 'account_cookie', 'commission', 'tax']
         # 信息类:
         self.strategy_name = strategy_name
         self.user_cookie = user_cookie
@@ -122,7 +122,8 @@ class QA_Account(QA_Worker):
             'init_assets': self.init_assets,
             'cash': self.cash,
             'history': self.history,
-            'trade_index': self.time_index
+            'trade_index': self.time_index,
+            'running_time': datetime.datetime.now()
         }
 
     @property
@@ -142,38 +143,42 @@ class QA_Account(QA_Worker):
     @property
     def history_table(self):
         '交易历史的table'
-        return pd.DataFrame(data=self.history, columns=self._history_headers)
+        return pd.DataFrame(data=self.history, columns=self._history_headers).sort_index()
 
     @property
     def cash_table(self):
         '现金的table'
         _cash = pd.DataFrame(data=[self.cash[1::], self.time_index], index=[
                              'cash', 'datetime']).T
-        _cash['date'] = _cash.datetime.apply(lambda x: str(x)[0:10])
-        return _cash.set_index('datetime', drop=False)
+        _cash = _cash.assign(date=_cash.datetime.apply(lambda x: str(x)[0:10])).assign(
+            account_cookie=self.account_cookie)
+
+        return _cash.set_index(['datetime', 'account_cookie'], drop=False).sort_index()
 
     @property
     def hold(self):
         '持仓'
-        return pd.DataFrame(data=self.history, columns=self._history_headers).groupby('code').amount.sum()
+        return pd.DataFrame(data=self.history, columns=self._history_headers).groupby('code').amount.sum().sort_index()
 
     @property
     def trade(self):
         '每次交易的pivot表'
-        return self.history_table.pivot(index='datetime', columns='code', values='amount').fillna(0)
+        return self.history_table.pivot_table(index=['datetime', 'account_cookie'], columns='code', values='amount').fillna(0).sort_index()
 
     @property
     def daily_cash(self):
         '每日交易结算时的现金表'
-        return self.cash_table.drop_duplicates(subset='date', keep='last')
+        return self.cash_table.drop_duplicates(subset='date', keep='last').sort_index()
 
     @property
     def daily_hold(self):
         '每日交易结算时的持仓表'
         data = self.trade.cumsum()
-        data['date'] = data.index
+
+        data = data.assign(account_cookie=self.account_cookie).assign(
+            date=data.index.levels[0])
         data.date = data.date.apply(lambda x: str(x)[0:10])
-        return data.set_index('date')
+        return data.set_index(['date', 'account_cookie'], drop=False).sort_index()
 
     # 计算assets的时候 需要一个market_data=QA.QA_fetch_stock_day_adv(list(data.columns),data.index[0],data.index[-1])
     # (market_data.to_qfq().pivot('close')*data).sum(axis=1)+user_cookie.get_account(a_1).daily_cash.set_index('date').cash
@@ -190,7 +195,7 @@ class QA_Account(QA_Worker):
 
     def reset_assets(self, init_assets=None):
         'reset_history/cash/'
-        self.sell_available = None
+        self.sell_available = {}
         self.history = []
         self.init_assets = init_assets
         self.cash = [self.init_assets]
@@ -209,8 +214,8 @@ class QA_Account(QA_Worker):
                 [str(message['body']['order']['datetime']), str(message['body']['order']['code']),
                  float(message['body']['order']['price']), int(message['body']['order']['towards']) *
                  float(message['body']['order']['amount']), str(
-                     message['header']['order_id']),
-                 str(message['header']['trade_id']), float(message['body']['fee']['commission']), float(message['body']['fee']['tax'])])
+                     message['header']['order_id']), str(message['header']['trade_id']), str(self.account_cookie),
+                 float(message['body']['fee']['commission']), float(message['body']['fee']['tax'])])
             self.cash.append(float(self.cash[-1]) - float(message['body']['order']['price']) *
                              float(message['body']['order']['amount']) * message['body']['order']['towards'] -
                              float(message['body']['fee']['commission']))
@@ -344,6 +349,12 @@ class QA_Account(QA_Worker):
     def save(self):
         save_account(self.message)
 
+    def change_cash(self, money):
+        res = self.cash[-1]+money
+        if res >= 0:
+            # 高危操作
+            self.cash[-1] = res
+
 
 class Account_handler():
     def __init__(self):
@@ -351,7 +362,6 @@ class Account_handler():
 
     def get_account(self, message):
         pass
-
 
 
 if __name__ == '__main__':

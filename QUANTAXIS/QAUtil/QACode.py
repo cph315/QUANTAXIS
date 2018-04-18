@@ -1,4 +1,4 @@
-# coding:utf-8
+#coding :utf-8
 #
 # The MIT License (MIT)
 #
@@ -21,29 +21,17 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-import os
-import sys
 
-#QUNATAXIS_DIR='{}{}{}'.format( os.path.expanduser('~'), os.sep, '.quantaxis')
-
-path = os.path.expanduser('~')
-qa_path = '{}{}{}'.format(path, os.sep, '.quantaxis')
-setting_path = '{}{}{}'.format(qa_path, os.sep, '.setting')
-cache_path = '{}{}{}'.format(qa_path, os.sep, '.cache')
+"""
+该文件主要是负责一些对于code名称的处理
+"""
 
 
-def make_cache():
-    pass
+def QA_util_code_tostr(code):
+    """
+    将所有沪深股票从数字转化到6位的代码
 
+    因为有时候在csv等转换的时候,诸如 000001的股票会变成office强制转化成数字1
 
-def make_dir():
-    path = os.path.expanduser('~')
-    qa_path = '{}{}{}'.format(path, os.sep, '.quantaxis')
-    os.makedirs(qa_path, exist_ok=True)
-    setting_path = '{}{}{}'.format(qa_path, os.sep, '.setting')
-    cache_path = '{}{}{}'.format(qa_path, os.sep, '.cache')
-    downloads_path = '{}{}{}'.format(qa_path, os.sep, 'downloads')
-    os.makedirs(setting_path, exist_ok=True)
-    os.makedirs(cache_path, exist_ok=True)
-    os.makedirs(downloads_path, exist_ok=True)
-
+    """
+    return '00000{}'.format(code)[-6:]

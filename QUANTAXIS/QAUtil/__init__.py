@@ -52,11 +52,15 @@ from QUANTAXIS.QAUtil.QADate_trade import (QA_util_date_gap,
                                            QA_util_get_trade_range,
                                            QA_util_if_trade,
                                            QA_util_if_tradetime,
+                                           QA_util_get_next_day,
+                                           QA_util_get_last_day,
                                            trade_date_sse)
 # list function
 from QUANTAXIS.QAUtil.QAList import (QA_util_diff_list,
                                      QA_util_multi_demension_list)
 
+# code function
+from QUANTAXIS.QAUtil.QACode import QA_util_code_tostr
 # dict function
 from QUANTAXIS.QAUtil.QADict import QA_util_dict_remove_key
 # log

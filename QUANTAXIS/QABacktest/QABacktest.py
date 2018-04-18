@@ -38,6 +38,7 @@ from QUANTAXIS.QAUtil.QAParameter import (AMOUNT_MODEL, BROKER_EVENT,
                                           ORDER_MODEL)
 
 
+
 class QA_Backtest():
     """BACKTEST
 
@@ -108,10 +109,10 @@ class QA_Backtest():
         # 如果出现了日期的改变 才会进行结算的事件
         
         _date = None
-        for data in self.ingest_data:
-            date = data.date[0]
-            if self.market_type is MARKET_TYPE.STOCK_CN:
-                if _date != date:
+        for data in self.ingest_data:#对于在ingest_data中的数据
+            date = data.date[0]#
+            if self.market_type is MARKET_TYPE.STOCK_CN: #如果是股票市场
+                if _date != date:# 如果新的date
                     self.market._settle(self.broker_name)
             elif self.market_type in [MARKET_TYPE.FUND_CN, MARKET_TYPE.INDEX_CN, MARKET_TYPE.FUTURE_CN]:
                 self.market._settle(self.broker_name)
@@ -146,6 +147,9 @@ class QA_Backtest():
         self.market.trade_engine.stop_all()
         self.market.trade_engine.stop()
 
+
+class BACKTEST_FRAMEWORK():
+    pass
 
 if __name__ == '__main__':
     backtest = QA_Backtest(market_type=MARKET_TYPE.STOCK_CN,

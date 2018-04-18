@@ -6,6 +6,7 @@
 [![GitHub stars](https://img.shields.io/github/stars/yutiansut/quantaxis.svg?style=social&label=Star&)](https://github.com/yutiansut/quantaxis/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/yutiansut/quantaxis.svg?style=social&label=Fork&)](https://github.com/yutiansut/quantaxis/fork)
 
+
 [点击右上角Star和Watch来跟踪项目进展! 点击Fork来创建属于你的QUANTAXIS!]
 
 ![post201802](http://osnhakmay.bkt.clouddn.com/quantaxis-post201802.png)
@@ -14,37 +15,27 @@
 ![presentbyyutiansut](http://osnhakmay.bkt.clouddn.com/yutiansut-logo.png)
 
 
-![version](https://img.shields.io/badge/Version-%201.0.12-orange.svg)
+![version](https://img.shields.io/pypi/v/quantaxis.svg)
 ![build](https://travis-ci.org/QUANTAXIS/QUANTAXIS.svg?branch=master)
 [![Codefresh build status]( https://g.codefresh.io/api/badges/build?repoOwner=yutiansut&repoName=QUANTAXIS&branch=master&pipelineName=QUANTAXIS&accountName=yutiansut_marketplace&type=cf-1)]( https://g.codefresh.io/repositories/yutiansut/QUANTAXIS/builds?filter=trigger:build;branch:master;service:5a30c1026e9d6c0001c5143b~QUANTAXIS)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/d8504e4af33747bb8117579212425af9)](https://www.codacy.com/app/yutiansut/QUANTAXIS?utm_source=github.com&utm_medium=referral&utm_content=yutiansut/QUANTAXIS&utm_campaign=badger)
 [![Stories in Ready](https://badge.waffle.io/yutiansut/QUANTAXIS.svg?label=ready&title=Ready)](http://waffle.io/yutiansut/QUANTAXIS)
 [![StackShare](https://img.shields.io/badge/tech-stack-0690fa.svg?style=flat)](https://stackshare.io/yutiansut/quantaxis)
 ![QAS](https://img.shields.io/badge/QAS-%200.0.8-brown.svg)
-![Pypi](https://img.shields.io/badge/Pypi-%201.0.12-blue.svg)
 ![python](https://img.shields.io/badge/python-%203.6/3.5/3.4/win/ubuntu-darkgrey.svg)
 ![Npm](https://img.shields.io/badge/Npm-%200.4.0-yellow.svg)
 ![author](https://img.shields.io/badge/Powered%20by-%20%20yutiansut-red.svg)
 ![license](https://img.shields.io/badge/License-%20MIT-brightgreen.svg)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FQUANTAXIS%2FQUANTAXIS.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2FQUANTAXIS%2FQUANTAXIS?ref=badge_shield)
 
 
-----------
-
-![happynewyear](http://osnhakmay.bkt.clouddn.com/quantaxishappynewyear.png)
-
-新年寄语:
-
-QUANTAXIS 祝大家在2018年 新年大吉 ~
-
-主要还是要注意身体 (^-^)
-
-@yutiansut 2018/2/16
-
-
----
 
 
 > 欢迎加群讨论: [群链接](https://jq.qq.com/?_wv=1027&k=4CEKGzn) 
+
+> 欢迎关注公众号: ![公众号](http://osnhakmay.bkt.clouddn.com/qrcode_for_gh_bbb47e0550f7_258%20%281%29.jpg)
+
+> 许多问题 可以在 [GITHUB ISSUE](https://github.com/QUANTAXIS/QUANTAXIS/issues)中找到, 你可以提出新的issue
 
 QUANTAXIS量化金融策略框架,是一个面向中小型策略团队的量化分析解决方案. 我们通过高度解耦的模块化以及标准化协议,可以快速的实现面向场景的定制化解决方案.QUANTAXIS是一个渐进式的开放式框架,你可以根据自己的需要,引入自己的数据,分析方案,可视化过程等,也可以通过RESTful接口,快速实现多人局域网/广域网内的协作.
 
@@ -68,6 +59,19 @@ QUANTAXIS量化金融策略框架,是一个面向中小型策略团队的量化�
 	/vscode-markdown-toc-config -->
 <!-- /vscode-markdown-toc -->
 
+## 电脑配置推荐
+
+推荐配置:
+6代以上CPU+ 16/32GB DDR3/DDR4内存+ 256GB以上SSD硬盘
+
+最低配置:
+支持X64位的CPU
+
+因为在存储本地数据的时候,需要存储超过2GB的本地数据,而32位的MONGODB最高只支持2GB左右的数据存储,因此最少需要一个X64位的CPU
+
+如果SSD资源够用,尽量将数据存储在SSD中,增加```wiretiger```写盘的速度
+
+如果是阿里云/腾讯云的服务器,请在最初的时候 选择64位的操作系统
 
 
 ##  1. <a name=''></a>功能
@@ -183,3 +187,7 @@ git clone https://github.com/yutiansut/quantaxis --depth 1
 QUANTAXIS-Stardand-Protocol 版本号0.0.8
 
 详情参见  [QUANATXISProtocol](Documents/readme.md)
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FQUANTAXIS%2FQUANTAXIS.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2FQUANTAXIS%2FQUANTAXIS?ref=badge_large)
